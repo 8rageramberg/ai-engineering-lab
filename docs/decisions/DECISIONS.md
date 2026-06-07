@@ -20,6 +20,25 @@ Add new entries at the top, newest first.
 
 ## Entries
 
+### 2026-06-07 — Use project-owned telemetry as source of truth
+- decision: The project will not build analytics directly on Claude Code internal logs. Coding-agent
+  usage will be logged through a project-owned session logger. Application AI calls will be logged
+  through the backend AI wrapper. Claude local logs may only be used as optional human cross-checks.
+- why: We investigated Claude Code local logs and found that they are useful for personal debugging
+  but not safe or stable enough to use as the system of record.
+- alternatives considered: Building the dashboard's analytics pipeline directly on Claude Code's
+  local session transcripts (`~/.claude/projects/*.jsonl`) — rejected for the reasons below.
+- impact:
+  - Claude logs are path-based and may fragment if the repo moves.
+  - Claude logs include raw prompts, file contents, and tool I/O.
+  - Claude log schema is undocumented and may change.
+  - Claude logs do not include feature_area, task_id, session_type, or cost.
+  - Project-owned logging gives cleaner long-term telemetry.
+
+  Consequences: slightly more manual logging early on, but much cleaner data quality, a safer
+  public dashboard, and easier long-term analytics.
+- feature_area: observability
+
 ### 2026-06-07 — Establish project control layer before app code
 - decision: Create AGENTS.md, CLAUDE.md, .ai/ contracts, and docs/worklog + docs/decisions before
   writing any frontend, backend, Terraform, or migration code.
