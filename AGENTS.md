@@ -24,6 +24,15 @@ Setup commands will be added here once `frontend/`, `backend/`, and `docker-comp
 - Do not add services or infrastructure unless the task explicitly requires it.
 - Prefer Postgres JSONB metadata over standing up new infrastructure.
 
+## Permissions (.claude/settings.json)
+This repo uses [.claude/settings.json](.claude/settings.json) to reduce approval fatigue during
+agent sessions:
+- Safe local file edits (read/edit/write) and the local git workflow (`status`, `diff`, `add`,
+  `commit`, `log`, `branch`) are auto-approved, since they're reversible and reviewable in the diff.
+- Destructive, cloud, network, and credential-related actions (e.g. `rm -rf`, `curl`/`wget`,
+  `aws`/`gcloud`/`az`, `terraform apply`/`destroy`, anything touching `~/.ssh`) remain blocked or
+  require explicit confirmation every time — no setting in this repo grants them automatically.
+
 ## Coding style
 - Keep diffs small and reviewable.
 - No comments that restate what the code does — only ones that explain non-obvious "why."
