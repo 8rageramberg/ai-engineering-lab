@@ -8,6 +8,23 @@ Add new entries at the top, newest first. Use the controlled vocabularies from
 [.ai/TELEMETRY_RULES.md](../../.ai/TELEMETRY_RULES.md) (`feature_area`, `session_type`,
 `model_provider`) — do not invent new values here.
 
+## Coding-session logger
+
+After a meaningful Claude Code / Codex session, run the structured logger from the repo root:
+
+```
+python3 scripts/log_ai_session.py
+```
+
+It interactively prompts for `model_provider`, `model_name`, `session_type`, `feature_area`,
+`task_id`, `prompt_count`, token counts, `estimated_cost_usd`, a short `summary`, and
+`changed_files`, validates against the controlled vocabularies above, and appends one
+`coding_session_logged` event per line to `docs/worklog/ai_sessions.jsonl`.
+
+This is the structured, machine-readable record — keep it alongside, not instead of, the
+narrative entries below. Never paste raw prompt text, file contents, or secrets into the
+`summary` field; a short description is enough.
+
 ## Entry format
 
 ```
