@@ -71,10 +71,19 @@ CLAUDE.md together so the vocabularies never drift apart.
   git, plus best-effort token enrichment from the local Claude Code transcript directory. This is
   the primary path going forward; the manual logger remains a fallback.
 
-Both paths use the same `coding_session_logged` shape and add one extra field beyond the core
-event table: `message_count` (integer, like `prompt_count` but counting agent turns/`Stop` events
-rather than user prompts). It is populated by the `git_hook` path via the `.ai/session_counter.json`
-accumulator and may be `null` for manually logged events.
+Both paths use the same `coding_session_logged` shape and add two extra fields beyond the core
+event table:
+- `message_count` (integer, like `prompt_count` but counting agent turns/`Stop` events rather than
+  user prompts). Populated by the `git_hook` path via the `.ai/session_counter.json` accumulator;
+  may be `null` for manually logged events.
+- `cache_read_tokens` (integer) — prompt-cache hits ("Input Cache (Hit)"), reported separately from
+  `input_tokens`/`total_tokens` because they are priced roughly 10x cheaper than fresh input and
+  would otherwise dwarf the "work effort" the token figures are meant to proxy. `total_tokens` is
+  `input_tokens + output_tokens + cache_creation_input_tokens` (cache *writes* count as real model
+  work; cache *reads* do not). `estimated_cost_usd` prices each of the four usage categories — input,
+  output, cache write, cache read — at its own per-million rate before summing, rather than blending
+  them into one rate (blending previously inflated cost estimates roughly 5x). `cache_read_tokens`
+  may be `null`/`0` when enrichment is unavailable, same as the other token fields.
 
 One short log per meaningful session is enough — this is what keeps the dashboard's early data honest.
 

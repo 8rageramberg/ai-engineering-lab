@@ -42,6 +42,38 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-07 — Fix cache-token accounting bug in commit-driven telemetry
+- agent: claude-code
+- session_type: debugging
+- feature_area: infra
+- task_id: none
+- summary: Fixed a token/cost accounting bug in the post-commit hook's transcript enrichment
+  (`scripts/git-hooks/post-commit`): it was summing `cache_read_input_tokens` into the same
+  `input_tokens` bucket as fresh input and pricing the blend at the standard input rate, inflating
+  both the token count and `estimated_cost_usd` by roughly 5x (cache reads are ~10x cheaper than
+  fresh input). The fix sums all four usage categories — input, output, cache write
+  (`cache_creation_input_tokens`), cache read (`cache_read_input_tokens`) — independently and prices
+  each at its own per-million rate (input $3, output $15, cache write $3.75, cache read $0.30,
+  Claude Sonnet list pricing as of 2026-06-07, noted as subject to drift). `total_tokens` now
+  reports input + output + cache-write as a "work effort" proxy; cache-read hits are reported in a
+  new `cache_read_tokens` field (documented in `.ai/TELEMETRY_RULES.md`) so near-free re-reads don't
+  dwarf the figure. Also corrected the one historical row affected (commit `df790d4`, logged before
+  the fix) in place — recomputed against its original enrichment window and annotated with
+  `metadata.corrected_at` / `metadata.correction_reason` — without touching any of its other fields.
+- changed_files: scripts/git-hooks/post-commit, .ai/TELEMETRY_RULES.md, docs/worklog/ai_sessions.jsonl
+  (in-place correction of the `df790d4` row only), docs/worklog/WORKLOG.md
+- tests: dry-ran the corrected enrichment function against the real local transcript directory
+  (input_tokens 258, cache_read_tokens ~10.9M, estimated_cost_usd ~$6.74 — consistent with the
+  official usage panel's verified figures of ~264 input tokens and ~$6.88); ran the hook end-to-end
+  in a throwaway temp git repo to confirm the new field appears and graceful null-degradation still
+  works when no transcript directory matches; made a trivial real commit and inspected the new row
+- tokens/cost: not separately logged for this debugging session — see the corrected `df790d4` row
+  and the new auto-logged row from this session's commit for the actual figures
+- telemetry notes: added `cache_read_tokens` to the `coding_session_logged` shape (documented in
+  TELEMETRY_RULES.md alongside `message_count`); redefined `total_tokens` to exclude cache-read
+  hits and `estimated_cost_usd` to price all four usage categories independently — both now closely
+  match the official Claude Code usage panel instead of overstating cost ~5x
+
 ### 2026-06-07 — Commit-driven telemetry replaces manual logging as the primary path
 - agent: claude-code
 - session_type: coding
