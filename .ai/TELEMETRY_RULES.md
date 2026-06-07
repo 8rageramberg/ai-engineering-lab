@@ -51,7 +51,7 @@ CREATE TABLE events (
 
 `session_type`: coding | debugging | architecture | writing | review | planning | other
 
-`source`: app | manual | github | scheduled_job | mobile
+`source`: app | manual | github | scheduled_job | mobile | git_hook
 
 `model_provider`: anthropic | openai | local | other
 
@@ -59,11 +59,22 @@ Do not introduce new values ad hoc. If a new category is genuinely needed, propo
 [docs/decisions/DECISIONS.md](../docs/decisions/DECISIONS.md) and update this file, AGENTS.md, and
 CLAUDE.md together so the vocabularies never drift apart.
 
-## Coding-agent session logging (manual, until automated)
-Claude Code / Codex usage isn't reliably exposed via API yet. Until it is, log each meaningful
-session manually (e.g. via `scripts/log_ai_session.py`, once it exists) with:
-provider, model, session_type, feature_area, task_id (optional), prompt_count, input/output tokens
-(optional), cost_estimate_usd (optional), summary, changed_files (optional).
+## Coding-agent session logging
+`coding_session_logged` events can come from two paths:
+- **Manual** (`source: manual`) — log a meaningful session by hand via `scripts/log_ai_session.py`,
+  for sessions that don't end in a commit. Captures: provider, model, session_type, feature_area,
+  task_id (optional), prompt_count, input/output tokens (optional), cost_estimate_usd (optional),
+  summary, changed_files (optional).
+- **Automatic** (`source: git_hook`) — a local `post-commit` git hook
+  (`scripts/git-hooks/post-commit`) appends one row per commit with zero typed input, deriving
+  `commit_sha`, `feature_area`, `summary` (= commit message), `changed_files`, and timestamps from
+  git, plus best-effort token enrichment from the local Claude Code transcript directory. This is
+  the primary path going forward; the manual logger remains a fallback.
+
+Both paths use the same `coding_session_logged` shape and add one extra field beyond the core
+event table: `message_count` (integer, like `prompt_count` but counting agent turns/`Stop` events
+rather than user prompts). It is populated by the `git_hook` path via the `.ai/session_counter.json`
+accumulator and may be `null` for manually logged events.
 
 One short log per meaningful session is enough — this is what keeps the dashboard's early data honest.
 

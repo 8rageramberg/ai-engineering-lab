@@ -40,6 +40,14 @@ Controlled session_type values:
 - planning
 - other
 
+Controlled source values:
+- app
+- manual
+- github
+- scheduled_job
+- mobile
+- git_hook
+
 After meaningful work:
 - Summarize changed files
 - Summarize tests run, or explain why none were run

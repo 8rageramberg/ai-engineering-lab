@@ -20,6 +20,27 @@ Add new entries at the top, newest first.
 
 ## Entries
 
+### 2026-06-07 — Add `git_hook` as a distinct telemetry source
+- decision: Add `git_hook` to the controlled `source` vocabulary (`.ai/TELEMETRY_RULES.md`,
+  `AGENTS.md`, `CLAUDE.md`) for `coding_session_logged` events that are appended automatically by
+  a local `post-commit` git hook, and add a `message_count` field alongside the existing
+  `prompt_count` to the `coding_session_logged` shape.
+- why: Automatic, commit-triggered telemetry is fired by a local script with no human typing and no
+  GitHub round-trip — it is neither `manual` (human-typed via `scripts/log_ai_session.py`) nor
+  `github` (remote/PR-based). Collapsing it into either existing value would make it impossible to
+  later tell which rows were typed by a person, which came from GitHub activity, and which were
+  emitted unattended by a local hook — exactly the kind of ambiguity this project's telemetry rules
+  exist to prevent.
+- alternatives considered:
+  - Reusing `manual` — rejected because these events involve no typed input at commit time; lumping
+    them together would hide how much of the worklog is unattended versus human-curated.
+  - Reusing `github` — rejected because this fires from a local git hook on the developer's machine,
+    not from GitHub's API or a webhook; no remote system is involved.
+- impact: `source` vocabulary gains `git_hook`; `coding_session_logged` events gain an optional
+  `message_count` field (counts agent turns/`Stop` events, mirrors `prompt_count`). Updates
+  `.ai/TELEMETRY_RULES.md`, `AGENTS.md`, and `CLAUDE.md` together so the vocabularies stay in sync.
+- feature_area: observability
+
 ### 2026-06-07 — Use project-owned telemetry as source of truth
 - decision: The project will not build analytics directly on Claude Code internal logs. Coding-agent
   usage will be logged through a project-owned session logger. Application AI calls will be logged

@@ -11,6 +11,21 @@ This repo is currently in the control-layer / planning stage — no app code exi
 Setup commands will be added here once `frontend/`, `backend/`, and `docker-compose.yml` exist
 (see the target layout in [.ai/PROJECT_CONTEXT.md](.ai/PROJECT_CONTEXT.md)).
 
+One-time, per-clone: point git at the repo's versioned hooks so commits are logged automatically
+(see [Commit-driven telemetry](#commit-driven-telemetry) below):
+```
+git config core.hooksPath scripts/git-hooks
+```
+
+## Commit-driven telemetry
+Every commit on a clone with `core.hooksPath` set as above runs
+[scripts/git-hooks/post-commit](scripts/git-hooks/post-commit), which appends one
+`coding_session_logged` row (source `git_hook`) to `docs/worklog/ai_sessions.jsonl` automatically —
+deriving `commit_sha`, `feature_area`, `summary` (the commit message), `changed_files`, and
+best-effort token counts, with zero typed input. It never blocks or fails a commit; on any error it
+writes nulls and logs a warning to stderr. `scripts/log_ai_session.py` remains available as a manual
+fallback for meaningful sessions that don't end in a commit.
+
 ## Repo map (current)
 - `AGENTS.md` — this file, generic agent onboarding
 - `CLAUDE.md` — Claude Code session memory and rules
@@ -57,7 +72,7 @@ propose additions via [docs/decisions/DECISIONS.md](docs/decisions/DECISIONS.md)
 
 `session_type`: coding | debugging | architecture | writing | review | planning | other
 
-`source`: app | manual | github | scheduled_job | mobile
+`source`: app | manual | github | scheduled_job | mobile | git_hook
 
 `model_provider`: anthropic | openai | local | other
 

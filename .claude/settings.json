@@ -11,7 +11,23 @@
       "Bash(git log:*)",
       "Bash(git branch:*)",
       "Bash(python3 scripts/:*)",
-      "Bash(python scripts/:*)"
+      "Bash(python scripts/:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Write(.claude/**)",
+      "Edit(.claude/**)",
+      "Write(scripts/git-hooks/**)",
+      "Edit(scripts/git-hooks/**)",
+      "Write(.ai/**)",
+      "Edit(.ai/**)",
+      "Bash(mkdir -p .claude/*)",
+      "Bash(mkdir -p scripts/*)",
+      "Bash(chmod +x scripts/git-hooks/*)"
     ],
     "ask": [
       "Bash(git push:*)",
@@ -36,6 +52,28 @@
       "Read(~/.ssh/**)",
       "Edit(~/.ssh/**)",
       "Write(~/.ssh/**)"
+    ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/bump_session_counter.py\" prompt_count"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/bump_session_counter.py\" message_count"
+          }
+        ]
+      }
     ]
   }
 }

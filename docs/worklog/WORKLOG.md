@@ -42,6 +42,37 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-07 — Commit-driven telemetry replaces manual logging as the primary path
+- agent: claude-code
+- session_type: coding
+- feature_area: infra
+- task_id: none
+- summary: Implemented automatic, commit-triggered telemetry: a `post-commit` git hook
+  (`scripts/git-hooks/post-commit`) now appends one `coding_session_logged` row per commit to
+  `docs/worklog/ai_sessions.jsonl` with zero typed input — deriving `commit_sha`, `feature_area`
+  (via a static path-prefix heuristic), `summary` (the commit message), `changed_files`, and
+  best-effort token/model enrichment from local Claude Code transcripts. A small accumulator
+  (`.ai/session_counter.json`, gitignored) is incremented by two new Claude Code hooks
+  (`UserPromptSubmit`, `Stop`) wired in `.claude/settings.json`, which count prompts/turns without
+  ever reading prompt or response content. Added `git_hook` to the controlled `source` vocabulary
+  and a `message_count` field to the `coding_session_logged` shape (see DECISIONS.md), and added
+  `scripts/telemetry_summary.py` to sum cumulative tokens/cost across the worklog.
+  `scripts/log_ai_session.py` remains as a manual fallback for sessions that don't end in a commit.
+- changed_files: .ai/TELEMETRY_RULES.md, AGENTS.md, CLAUDE.md, docs/decisions/DECISIONS.md,
+  .ai/session_counter.json (gitignored), .gitignore, .claude/hooks/bump_session_counter.py,
+  .claude/settings.json, scripts/git-hooks/post-commit, scripts/telemetry_summary.py,
+  docs/worklog/WORKLOG.md
+- tests: ran the post-commit hook end-to-end in a throwaway temp git repo (verified row shape,
+  feature_area derivation, counter reset, and graceful null-degradation with no transcript match);
+  separately dry-ran the token-enrichment function against the real local transcript directory to
+  confirm it locates the dir, dedupes streamed usage by message id, and sums plausible totals
+  without writing anything
+- tokens/cost: not logged for this session (manual fallback applies — this commit will also be the
+  first to produce an automatic `git_hook` row once the hook is wired via `core.hooksPath`)
+- telemetry notes: added `git_hook` to the `source` vocabulary and `message_count` to the
+  `coding_session_logged` shape — both recorded in DECISIONS.md and kept in sync across
+  TELEMETRY_RULES.md, AGENTS.md, and CLAUDE.md
+
 ### 2026-06-07 — Project control layer created
 - agent: claude-code
 - session_type: writing

@@ -1,0 +1,277 @@
+#!/usr/bin/env python3
+"""post-commit hook: append one coding_session_logged row per commit, with zero typed input.
+
+One-time setup (see AGENTS.md): `git config core.hooksPath scripts/git-hooks`
+
+Must never block or fail a commit. Every risky step (git plumbing, transcript reads) is
+wrapped so a failure degrades to null/0 fields plus a stderr warning, never a non-zero exit.
+"""
+
+import json
+import subprocess
+import sys
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
+# feature_area heuristic: map changed-file path prefixes to the controlled vocabulary in
+# .ai/TELEMETRY_RULES.md (frontend | backend | infra | ai | observability | docs | todo_agent
+# | mobile). Checked in order, first match wins; the area touching the most changed files is
+# used. Extend this list as frontend/, backend/, mobile/ etc. directories come into existence.
+PATH_PREFIX_TO_FEATURE_AREA = [
+    ("frontend/", "frontend"),
+    ("backend/app/ai/", "ai"),
+    ("backend/app/telemetry/", "observability"),
+    ("backend/", "backend"),
+    ("mobile/", "mobile"),
+    ("docs/", "docs"),
+    ("scripts/", "infra"),
+    (".ai/", "infra"),
+    (".claude/", "infra"),
+    ("infra/", "infra"),
+    ("terraform/", "infra"),
+]
+DEFAULT_FEATURE_AREA = "infra"
+
+# Rough blended-rate token pricing (USD per million tokens, Claude Sonnet list pricing).
+# Enrichment only -- never a billing record. See the 2026-06-07 DECISIONS.md entry on not
+# relying on Claude's internal logs as a system of record.
+INPUT_USD_PER_MTOK = 3.0
+OUTPUT_USD_PER_MTOK = 15.0
+
+
+def warn(message):
+    print(f"post-commit: {message}", file=sys.stderr)
+
+
+def git(repo_root, *args):
+    return subprocess.run(
+        ["git", *args], capture_output=True, text=True, cwd=repo_root, check=True
+    ).stdout
+
+
+def derive_commit_facts(repo_root):
+    sha = git(repo_root, "rev-parse", "HEAD").strip()
+    branch = git(repo_root, "rev-parse", "--abbrev-ref", "HEAD").strip()
+    changed_files = [
+        line
+        for line in git(repo_root, "diff-tree", "--no-commit-id", "--name-only", "-r", "--root", sha).splitlines()
+        if line
+    ]
+    commit_timestamp = git(repo_root, "show", "-s", "--format=%cI", sha).strip()
+    message = git(repo_root, "log", "-1", "--format=%B", sha).rstrip("\n")
+    return sha, branch, changed_files, commit_timestamp, message
+
+
+def derive_feature_area(changed_files):
+    counts = {}
+    for path in changed_files:
+        for prefix, area in PATH_PREFIX_TO_FEATURE_AREA:
+            if path.startswith(prefix):
+                counts[area] = counts.get(area, 0) + 1
+                break
+    if not counts:
+        return DEFAULT_FEATURE_AREA
+    return max(counts.items(), key=lambda kv: kv[1])[0]
+
+
+def read_counter(counter_path):
+    try:
+        data = json.loads(counter_path.read_text(encoding="utf-8"))
+        return data.get("prompt_count", 0), data.get("message_count", 0), data.get("window_started_at")
+    except Exception as exc:
+        warn(f"could not read session counter, defaulting to zero ({exc})")
+        return 0, 0, None
+
+
+def reset_counter(counter_path):
+    try:
+        counter_path.write_text(
+            json.dumps(
+                {
+                    "prompt_count": 0,
+                    "message_count": 0,
+                    "window_started_at": datetime.now(timezone.utc).isoformat(),
+                }
+            ),
+            encoding="utf-8",
+        )
+    except Exception as exc:
+        warn(f"could not reset session counter ({exc})")
+
+
+def parse_iso(timestamp):
+    return datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+
+
+def find_transcript_dir(repo_root):
+    """Match this repo's Claude Code transcript dir under ~/.claude/projects/.
+
+    The directory name encodes the repo's absolute path with `/` replaced by `-`.
+    """
+    base = Path.home() / ".claude" / "projects"
+    if not base.is_dir():
+        return None
+    candidate = base / str(repo_root.resolve()).replace("/", "-")
+    if candidate.is_dir():
+        return candidate
+    suffix = f"-{repo_root.name}"
+    for entry in base.iterdir():
+        if entry.is_dir() and entry.name.endswith(suffix):
+            return entry
+    return None
+
+
+def enrich_from_transcripts(repo_root, window_started_at):
+    """Best-effort token/model enrichment from the local Claude Code transcript directory.
+
+    Wrapped end-to-end: any failure (missing dir, unfamiliar schema, bad timestamps) degrades
+    to nulls rather than blocking the commit. Treated purely as enrichment, never a dependency.
+    """
+    nulls = (None, None, None, None, None)
+    if not window_started_at:
+        return nulls
+    try:
+        window_start = parse_iso(window_started_at)
+    except ValueError:
+        return nulls
+
+    transcript_dir = find_transcript_dir(repo_root)
+    if transcript_dir is None:
+        return nulls
+
+    window_end = datetime.now(timezone.utc)
+    seen_message_ids = set()
+    input_tokens = 0
+    output_tokens = 0
+    model_counts = {}
+
+    for jsonl_path in transcript_dir.glob("*.jsonl"):
+        try:
+            with jsonl_path.open(encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entry = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+
+                    timestamp = entry.get("timestamp")
+                    if not timestamp:
+                        continue
+                    try:
+                        entry_time = parse_iso(timestamp)
+                    except ValueError:
+                        continue
+                    if not (window_start <= entry_time <= window_end):
+                        continue
+
+                    message = entry.get("message")
+                    if not isinstance(message, dict):
+                        continue
+                    usage = message.get("usage")
+                    if not isinstance(usage, dict):
+                        continue
+
+                    # The same assistant message is logged multiple times (streaming deltas);
+                    # dedupe on the API message id so usage is only counted once.
+                    message_id = message.get("id")
+                    if message_id:
+                        if message_id in seen_message_ids:
+                            continue
+                        seen_message_ids.add(message_id)
+
+                    input_tokens += (
+                        usage.get("input_tokens", 0)
+                        + usage.get("cache_creation_input_tokens", 0)
+                        + usage.get("cache_read_input_tokens", 0)
+                    )
+                    output_tokens += usage.get("output_tokens", 0)
+
+                    model_name = message.get("model")
+                    if model_name:
+                        model_counts[model_name] = model_counts.get(model_name, 0) + 1
+        except Exception as exc:
+            warn(f"skipping unreadable transcript {jsonl_path.name} ({exc})")
+            continue
+
+    if not seen_message_ids:
+        return nulls
+
+    total_tokens = input_tokens + output_tokens
+    estimated_cost_usd = round((input_tokens * INPUT_USD_PER_MTOK + output_tokens * OUTPUT_USD_PER_MTOK) / 1_000_000, 6)
+    model_name = max(model_counts.items(), key=lambda kv: kv[1])[0] if model_counts else None
+    return input_tokens, output_tokens, total_tokens, estimated_cost_usd, model_name
+
+
+def append_event(worklog_path, record):
+    worklog_path.parent.mkdir(parents=True, exist_ok=True)
+    with worklog_path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record) + "\n")
+
+
+def main():
+    try:
+        repo_root = Path(
+            subprocess.run(
+                ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=True
+            ).stdout.strip()
+        )
+    except Exception as exc:
+        warn(f"could not resolve repo root, skipping telemetry row ({exc})")
+        return
+
+    counter_path = repo_root / ".ai" / "session_counter.json"
+    worklog_path = repo_root / "docs" / "worklog" / "ai_sessions.jsonl"
+
+    try:
+        sha, branch, changed_files, commit_timestamp, message = derive_commit_facts(repo_root)
+    except Exception as exc:
+        warn(f"could not derive commit facts, skipping telemetry row ({exc})")
+        return
+
+    prompt_count, message_count, window_started_at = read_counter(counter_path)
+    feature_area = derive_feature_area(changed_files)
+    input_tokens, output_tokens, total_tokens, estimated_cost_usd, model_name = enrich_from_transcripts(
+        repo_root, window_started_at
+    )
+
+    record = {
+        "id": str(uuid.uuid4()),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "event_type": "coding_session_logged",
+        "source": "git_hook",
+        "model_provider": "anthropic",
+        "model_name": model_name,
+        "session_type": None,
+        "feature_area": feature_area,
+        "task_id": None,
+        "commit_sha": sha,
+        "prompt_count": prompt_count,
+        "message_count": message_count,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "total_tokens": total_tokens,
+        "estimated_cost_usd": estimated_cost_usd,
+        "summary": message,
+        "changed_files": changed_files,
+        "metadata": {"branch": branch, "commit_timestamp": commit_timestamp},
+    }
+
+    try:
+        append_event(worklog_path, record)
+    except Exception as exc:
+        warn(f"could not append worklog row, nothing logged ({exc})")
+        return
+
+    reset_counter(counter_path)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as exc:
+        warn(f"unexpected failure, commit not affected ({exc})")
+    sys.exit(0)
