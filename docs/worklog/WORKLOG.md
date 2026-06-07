@@ -42,6 +42,25 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-08 — Add ship-it skill to streamline the commit ritual
+- agent: claude-code
+- session_type: writing
+- feature_area: infra
+- task_id: none
+- summary: Added a `ship-it` project skill (`.claude/skills/ship-it/SKILL.md`) that runs the
+  end-to-end "ready to commit" ritual on natural trigger phrases ("ship this", "commit now", "let's
+  ship it", etc.): review the diff, draft a commit message per AGENTS.md conventions, judge whether
+  the change warrants a DECISIONS.md entry, write a short narrative WORKLOG.md entry, then commit
+  and push. It explicitly retires the manual telemetry-logging half of CLAUDE.md's old "after
+  meaningful work" checklist — no more hand-categorizing session_type/feature_area/model_provider
+  or running `scripts/log_ai_session.py` — because the post-commit git hook now derives all of that
+  automatically the instant a commit lands; duplicating it by hand would only risk inconsistent data.
+- changed_files: .claude/skills/ship-it/SKILL.md
+- tests: none — instructions only, no executable code; exercised live for the first time on the
+  commit this entry is part of
+- tokens/cost: not logged here — the post-commit hook records this commit automatically
+- telemetry notes: none — no vocabulary, schema, or event-type changes
+
 ### 2026-06-07 — Fix cache-token accounting bug in commit-driven telemetry
 - agent: claude-code
 - session_type: debugging
