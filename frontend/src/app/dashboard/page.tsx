@@ -1,5 +1,6 @@
-import { getTelemetrySummary } from "@/lib/api";
+import { getTelemetrySummary, getDailyActivity } from "@/lib/api";
 import { SystemStatus } from "./SystemStatus";
+import { ActivityCalendar } from "./ActivityCalendar";
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 const costFormatter = new Intl.NumberFormat("en-US", {
@@ -8,11 +9,18 @@ const costFormatter = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+const hoursFormatter = new Intl.NumberFormat("en-US", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
 
 export default async function Dashboard() {
-  const summary = await getTelemetrySummary().catch(() => null);
+  const [summary, dailyActivity] = await Promise.all([
+    getTelemetrySummary().catch(() => null),
+    getDailyActivity().catch(() => []),
+  ]);
 
-  const stats = summary
+  const supportingStats = summary
     ? [
         {
           label: "Tokens spent building this",
@@ -20,19 +28,14 @@ export default async function Dashboard() {
           hint: "input + output + cache-write tokens across every logged session",
         },
         {
-          label: "Estimated cost so far",
+          label: "Estimated cost (Claude list-rate pricing)",
           value: costFormatter.format(summary.total_cost_usd),
-          hint: "priced per-category at current Claude list rates",
+          hint: "priced per-category at current Claude list rates — not an actual invoice",
         },
         {
           label: "Coding sessions logged",
           value: numberFormatter.format(summary.session_count),
-          hint: "every Claude Code / Codex session that touched this repo",
-        },
-        {
-          label: "Commits shipped",
-          value: numberFormatter.format(summary.commit_count),
-          hint: "distinct commits with an attached telemetry event",
+          hint: `across ${numberFormatter.format(summary.commit_count)} commits with an attached telemetry event`,
         },
       ]
     : [];
@@ -55,20 +58,37 @@ export default async function Dashboard() {
         </p>
 
         {summary ? (
-          <dl className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {stats.map((stat) => (
-              <div
-                key={stat.label}
-                className="rounded-xl border border-text-secondary/15 bg-surface p-6 shadow-sm"
-              >
-                <dt className="text-sm font-medium text-text-secondary">{stat.label}</dt>
-                <dd className="mt-2 text-3xl font-semibold tracking-tight text-accent-primary">
-                  {stat.value}
-                </dd>
-                <p className="mt-2 text-xs text-text-secondary">{stat.hint}</p>
-              </div>
-            ))}
-          </dl>
+          <>
+            <div className="mt-12 rounded-xl border border-text-secondary/15 bg-surface p-8 shadow-sm">
+              <p className="text-sm font-medium text-text-secondary">
+                Hours of AI-assisted development
+              </p>
+              <p className="mt-2 text-5xl font-semibold tracking-tight text-accent-primary">
+                {hoursFormatter.format(summary.total_dev_hours)}
+              </p>
+              <p className="mt-2 text-xs text-text-secondary">
+                wall-clock time from each session&apos;s first prompt to its landing commit,
+                summed across every logged session
+              </p>
+            </div>
+
+            <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {supportingStats.map((stat) => (
+                <div
+                  key={stat.label}
+                  className="rounded-xl border border-text-secondary/15 bg-surface p-6 shadow-sm"
+                >
+                  <dt className="text-sm font-medium text-text-secondary">{stat.label}</dt>
+                  <dd className="mt-2 text-3xl font-semibold tracking-tight text-accent-primary">
+                    {stat.value}
+                  </dd>
+                  <p className="mt-2 text-xs text-text-secondary">{stat.hint}</p>
+                </div>
+              ))}
+            </dl>
+
+            <ActivityCalendar days={dailyActivity} />
+          </>
         ) : (
           <div className="mt-12 rounded-xl border border-dashed border-text-secondary/30 bg-surface p-8 text-center text-sm text-text-secondary">
             Couldn&apos;t reach the telemetry API — make sure the backend is running and the

@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
-"""post-commit hook: append one coding_session_logged row per commit, with zero typed input.
+"""post-commit hook: log one coding_session_logged row per commit, with zero typed input.
 
 One-time setup (see AGENTS.md): `git config core.hooksPath scripts/git-hooks`
 
-Must never block or fail a commit. Every risky step (git plumbing, transcript reads) is
-wrapped so a failure degrades to null/0 fields plus a stderr warning, never a non-zero exit.
+Dual-writes the same row to two places: appends to docs/worklog/ai_sessions.jsonl (the
+durable, human-auditable system of record) AND inserts it into the live `events` table (so
+the dashboard reflects the commit immediately, with no manual reseed). The jsonl write is
+the one that must succeed for the row to exist at all -- the live-table insert is pure
+enrichment for queryability and degrades to a stderr warning on any failure.
+
+Must never block or fail a commit. Every risky step (git plumbing, transcript reads, the
+live-table insert) is wrapped so a failure degrades to null/0 fields plus a stderr warning,
+never a non-zero exit.
 """
 
 import json
+import os
 import subprocess
 import sys
 import uuid
@@ -238,6 +246,87 @@ def append_event(worklog_path, record):
         f.write(json.dumps(record) + "\n")
 
 
+# Columns that exist directly on the `events` table per .ai/TELEMETRY_RULES.md. Anything else
+# the worklog record carries (prompt_count, summary, changed_files, window_started_at, ...)
+# folds into `metadata` JSONB -- mirrors backend/seed.py's to_row() so a dual-written row is
+# byte-for-byte the same shape as one produced by re-running the seed script from the jsonl.
+CORE_EVENT_FIELDS = {
+    "id", "created_at", "event_type", "source", "feature_area", "task_id", "commit_sha",
+    "model_provider", "model_name", "input_tokens", "output_tokens", "total_tokens",
+    "estimated_cost_usd", "latency_ms", "success",
+}
+
+INSERT_EVENT_SQL = r"""
+\getenv event_row_json EVENT_ROW_JSON
+INSERT INTO events (
+    id, created_at, event_type, source, feature_area, task_id, commit_sha,
+    model_provider, model_name, input_tokens, output_tokens, total_tokens,
+    estimated_cost_usd, latency_ms, success, metadata
+)
+SELECT
+    (r->>'id')::uuid,
+    (r->>'created_at')::timestamptz,
+    r->>'event_type',
+    r->>'source',
+    r->>'feature_area',
+    NULLIF(r->>'task_id', '')::uuid,
+    r->>'commit_sha',
+    r->>'model_provider',
+    r->>'model_name',
+    COALESCE((r->>'input_tokens')::int, 0),
+    COALESCE((r->>'output_tokens')::int, 0),
+    COALESCE((r->>'total_tokens')::int, 0),
+    COALESCE((r->>'estimated_cost_usd')::numeric, 0),
+    NULLIF(r->>'latency_ms', '')::int,
+    COALESCE((r->>'success')::boolean, true),
+    COALESCE(r->'metadata', '{}'::jsonb)
+FROM (SELECT :'event_row_json'::jsonb AS r) t
+ON CONFLICT (id) DO NOTHING;
+"""
+
+
+def to_event_row(record):
+    extra = {k: v for k, v in record.items() if k not in CORE_EVENT_FIELDS}
+    metadata = {**extra.pop("metadata", {}), **extra}
+    row = {field: record.get(field) for field in CORE_EVENT_FIELDS}
+    if row.get("success") is None:
+        row["success"] = True
+    row["metadata"] = metadata
+    return row
+
+
+def insert_event_row(repo_root, record):
+    """Best-effort dual-write of the same row straight into the live `events` table.
+
+    Routed through `docker compose exec` into the postgres container rather than connecting
+    from the host directly: this machine also runs a native Postgres bound to 127.0.0.1:5432,
+    which silently shadows the compose service's published port, and going through the
+    container's own network namespace needs no extra Postgres driver on the host either.
+    The jsonl write above is the durable system of record regardless of whether this succeeds
+    -- any failure here (compose not running, daemon unreachable, etc.) is purely a stderr
+    warning, never a reason to fail or block the commit.
+    """
+    payload = json.dumps(to_event_row(record))
+    try:
+        result = subprocess.run(
+            [
+                "docker", "compose", "exec", "-T", "-e", f"EVENT_ROW_JSON={payload}",
+                "postgres", "psql", "-U", "portfolio", "-d", "portfolio", "-v", "ON_ERROR_STOP=1",
+            ],
+            input=INSERT_EVENT_SQL,
+            capture_output=True,
+            text=True,
+            cwd=repo_root,
+            timeout=15,
+        )
+    except Exception as exc:
+        warn(f"could not reach the live events table, dashboard won't see this commit yet ({exc})")
+        return
+    if result.returncode != 0:
+        detail = result.stderr.strip().splitlines()[-1] if result.stderr.strip() else "unknown error"
+        warn(f"live events table insert failed, dashboard won't see this commit yet ({detail})")
+
+
 def main():
     try:
         repo_root = Path(
@@ -277,6 +366,7 @@ def main():
         "commit_sha": sha,
         "prompt_count": prompt_count,
         "message_count": message_count,
+        "window_started_at": window_started_at,
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
         "total_tokens": total_tokens,
@@ -294,6 +384,10 @@ def main():
         return
 
     reset_counter(counter_path)
+
+    # Dual-write: the jsonl above is the durable, human-auditable system of record; this is
+    # purely so the live dashboard reflects the commit immediately without a manual reseed.
+    insert_event_row(repo_root, record)
 
 
 if __name__ == "__main__":

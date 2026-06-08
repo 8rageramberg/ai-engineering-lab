@@ -42,6 +42,40 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-08 — Fix live telemetry sync and add hours/calendar metrics to the dashboard
+- agent: claude-code
+- session_type: coding
+- feature_area: observability
+- task_id: none
+- summary: Closed the gap where the dashboard only reflected `events` rows loaded by the
+  one-time seed script — the `post-commit` hook now dual-writes every
+  `coding_session_logged` row straight into the live `events` table (via
+  `docker compose exec ... psql`, working around a native-Postgres port collision on
+  :5432) immediately after appending it to the jsonl worklog, so new commits show up with
+  no manual reseed. Also: persisted a new `window_started_at` field on each row (session
+  start, alongside the existing commit-time `created_at`) so session duration can be
+  computed; relabeled the "estimated cost" stat to be honest about it being list-rate
+  pricing, not an invoice; pulled a new headline metric — "hours of AI-assisted
+  development" — out of the supporting-stats grid, computed by summing
+  `created_at - window_started_at` across every logged session
+  (`backend/app/telemetry/repository.py`); and added a token-weighted GitHub-style
+  activity calendar (`ActivityCalendar.tsx` + `GET /api/telemetry/daily-activity`) shaded
+  by tokens spent per day rather than commit count, using only existing palette tokens at
+  rising opacity.
+- changed_files: scripts/git-hooks/post-commit, backend/app/telemetry/repository.py,
+  backend/app/main.py, frontend/src/lib/api.ts, frontend/src/app/dashboard/page.tsx,
+  frontend/src/app/dashboard/ActivityCalendar.tsx, docs/decisions/DECISIONS.md
+- tests: rebuilt the stack, made a trivial verification commit, and confirmed its row
+  appeared live on the dashboard (tokens/cost/sessions/hours/calendar all updated) with no
+  reseed — the exact gap this fixes. Confirmed the dual-write degrades gracefully (stderr
+  warning, commit still succeeds) when the live-table insert can't reach postgres.
+  Screenshots confirmed the new headline, relabeled stat, and calendar render correctly.
+- tokens/cost: see ai_sessions.jsonl
+- telemetry notes: `coding_session_logged` rows gain an optional `window_started_at`
+  field (documented in DECISIONS.md); no controlled-vocabulary changes. The live-table
+  dual-write means `events` now stays in sync with the jsonl worklog automatically —
+  the seed script remains useful only for fresh/empty databases.
+
 ### 2026-06-08 — Add a polled live system-status view to the dashboard
 - agent: claude-code
 - session_type: coding

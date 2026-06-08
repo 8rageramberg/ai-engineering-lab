@@ -20,6 +20,69 @@ Add new entries at the top, newest first.
 
 ## Entries
 
+### 2026-06-08 — Persist `window_started_at` on every `coding_session_logged` row
+- decision: Add `window_started_at` (the session-start timestamp already tracked in
+  `.ai/session_counter.json` and used to scope transcript enrichment) to the
+  `coding_session_logged` record the post-commit hook writes, alongside `created_at`
+  (commit time). It is not a core `events` column — like `prompt_count`, `summary`, and
+  `changed_files` before it, it folds into `metadata` JSONB via the existing
+  extra-fields-to-metadata convention in `backend/seed.py`'s `to_row()` (mirrored in the
+  hook's new `to_event_row()`).
+- why: The hook already computed `window_started_at` (to scope transcript reads) but
+  discarded it before writing the row — so "how long was this session" was knowable in the
+  moment but not recoverable afterward. Persisting it turns `created_at - window_started_at`
+  into a queryable per-row duration, which is exactly what a new "hours of AI-assisted
+  development" headline metric needs (`backend/app/telemetry/repository.py`'s
+  `SUMMARY_QUERY` now sums it via `EXTRACT(EPOCH FROM ...)`). Skipping this would have meant
+  inventing a parallel, harder-to-audit way to estimate session length.
+- alternatives considered:
+  - Deriving duration from `latency_ms` — rejected; that field describes a single AI
+    request's response time, not a multi-prompt coding session's wall-clock span.
+  - Adding `window_started_at` as a first-class `events` column — rejected as schema churn
+    for a single-purpose, hook-specific timestamp; JSONB metadata is exactly the
+    "flexible, schema-light" extension point `backend/seed.py` already documents and uses
+    for comparable fields.
+- impact: New `coding_session_logged` rows (both the jsonl and the live `events` table, see
+  the dual-write entry below) carry `metadata.window_started_at`. Historical rows lack it —
+  the summary query filters those out via `WHERE metadata->>'window_started_at' IS NOT NULL`,
+  so the hours figure is simply quieter until enough new commits land, never wrong.
+- feature_area: observability
+
+### 2026-06-08 — Dual-write `coding_session_logged` rows to the jsonl worklog and the live `events` table
+- decision: The post-commit hook (`scripts/git-hooks/post-commit`) now writes every commit's
+  telemetry row to *both* `docs/worklog/ai_sessions.jsonl` (unchanged — still the durable,
+  human-auditable system of record, append-only) *and* directly into the live Postgres
+  `events` table, via `docker compose exec postgres psql` with the row passed as a single
+  JSON value through `\getenv` (no shell-interpolation, no extra Postgres driver on the
+  host). The live-table insert is strictly best-effort: any failure (compose not running,
+  daemon unreachable, etc.) degrades to a stderr warning and never blocks or fails the commit
+  — the jsonl write is the only one that must succeed for the row to exist at all.
+- why: Previously `events` was populated once via `backend/seed.py` reading the jsonl, so
+  every commit *after* that one-time seed silently never appeared on the live dashboard —
+  exactly the kind of dirty/stale-data trap `.ai/TELEMETRY_RULES.md` warns about. Dual-writing
+  closes that gap: the dashboard now reflects new commits immediately, with no manual reseed,
+  while the jsonl remains the append-only ground truth that `seed.py` can always rebuild
+  `events` from if the table is ever dropped or migrated.
+- alternatives considered:
+  - Have the hook write *only* to `events` and retire the jsonl — rejected; the jsonl is the
+    portable, diffable, git-tracked record that survives a database wipe and is the thing a
+    human can audit in a PR review. Losing it would also contradict its documented role as
+    "system of record" in `.ai/TELEMETRY_RULES.md`.
+  - Have the backend poll/tail the jsonl on an interval — rejected as exactly the kind of
+    "premature infrastructure" `.ai/PROJECT_CONTEXT.md` warns against (a scheduler, file
+    watching, drift between "logged" and "visible" times) for a problem a five-line dual
+    write solves at the source.
+  - Connect to Postgres directly from the host hook via `psycopg` — rejected after
+    discovering this machine runs a *native* Postgres also bound to `127.0.0.1:5432`, which
+    silently shadows the compose service's published port; routing through
+    `docker compose exec` into the container's own network namespace sidesteps that local
+    quirk entirely and avoids adding a Python dependency to the host setup.
+- impact: `scripts/git-hooks/post-commit` gains `to_event_row()` (mirrors `seed.py`'s
+  `to_row()` so both paths produce byte-identical row shapes) and `insert_event_row()`. No
+  schema or vocabulary changes — same `coding_session_logged` shape, same `git_hook` source.
+- feature_area: observability
+
+
 ### 2026-06-08 — Add a polled live system-status view via the Docker Engine API
 - decision: Add a second observability view to the dashboard — "is this system alive right
   now, and how is it doing" — backed by a new `GET /api/system-status` endpoint

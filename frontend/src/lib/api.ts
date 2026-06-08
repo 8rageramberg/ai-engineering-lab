@@ -20,6 +20,12 @@ export type TelemetrySummary = {
   total_cost_usd: number;
   session_count: number;
   commit_count: number;
+  total_dev_hours: number;
+};
+
+export type DailyActivity = {
+  date: string;
+  tokens: number;
 };
 
 export type ContainerStats = {
@@ -59,6 +65,10 @@ export function getHealth() {
 
 export function getTelemetrySummary() {
   return getJSON<TelemetrySummary>("/api/telemetry/summary");
+}
+
+export function getDailyActivity() {
+  return getJSON<DailyActivity[]>("/api/telemetry/daily-activity");
 }
 
 export function getSystemStatus() {

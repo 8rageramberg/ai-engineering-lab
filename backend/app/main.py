@@ -25,6 +25,11 @@ def telemetry_summary():
     return telemetry_repository.get_summary()
 
 
+@app.get("/api/telemetry/daily-activity")
+def telemetry_daily_activity():
+    return telemetry_repository.get_daily_activity()
+
+
 @app.get("/api/system-status")
 def system_status():
     return system_status_service.get_status()
