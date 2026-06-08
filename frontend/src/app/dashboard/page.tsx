@@ -39,17 +39,18 @@ export default async function Dashboard() {
   return (
     <div className="flex flex-1 flex-col items-center px-6 py-20">
       <div className="w-full max-w-4xl">
-        <p className="text-sm font-medium uppercase tracking-widest text-indigo-600">
+        <p className="text-sm font-medium uppercase tracking-widest text-accent-primary">
           Telemetry dashboard
         </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
+        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">
           Here&apos;s what it has cost, in tokens and dollars, to build this project.
         </h1>
-        <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-600">
+        <p className="mt-4 max-w-2xl text-base leading-7 text-text-secondary">
           Every coding session is logged as a structured event the moment it lands as a
           commit — no hand-typed numbers, no guesswork. These figures are aggregated live
-          from the same <code className="rounded bg-zinc-200 px-1 py-0.5 text-sm">events</code> table
-          the rest of this platform runs on.
+          from the same{" "}
+          <code className="rounded bg-surface px-1 py-0.5 text-sm text-text-primary">events</code>{" "}
+          table the rest of this platform runs on.
         </p>
 
         {summary ? (
@@ -57,18 +58,18 @@ export default async function Dashboard() {
             {stats.map((stat) => (
               <div
                 key={stat.label}
-                className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm"
+                className="rounded-xl border border-text-secondary/15 bg-surface p-6 shadow-sm"
               >
-                <dt className="text-sm font-medium text-zinc-500">{stat.label}</dt>
-                <dd className="mt-2 text-3xl font-semibold tracking-tight text-zinc-900">
+                <dt className="text-sm font-medium text-text-secondary">{stat.label}</dt>
+                <dd className="mt-2 text-3xl font-semibold tracking-tight text-accent-primary">
                   {stat.value}
                 </dd>
-                <p className="mt-2 text-xs text-zinc-400">{stat.hint}</p>
+                <p className="mt-2 text-xs text-text-secondary">{stat.hint}</p>
               </div>
             ))}
           </dl>
         ) : (
-          <div className="mt-12 rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500">
+          <div className="mt-12 rounded-xl border border-dashed border-text-secondary/30 bg-surface p-8 text-center text-sm text-text-secondary">
             Couldn&apos;t reach the telemetry API — make sure the backend is running and the
             database has been seeded.
           </div>

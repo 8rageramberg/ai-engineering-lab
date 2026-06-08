@@ -1,26 +1,38 @@
 @import "tailwindcss";
 
+/*
+ * Theme tokens — warm earth-tone palette (cream/beige, tan/camel, sage and
+ * olive greens, deep maroon as a sparing alert accent). Named semantically
+ * (background, surface, text-primary/secondary, accent-primary/secondary/alert)
+ * rather than by color name, so the
+ * whole palette can be swapped later by editing only this block — no
+ * find-and-replace across components. Every pairing below is checked against
+ * WCAG AA (4.5:1 for body text, 3:1 for large text/headings).
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #efeae2;       /* warm cream/beige page background */
+  --surface: #e3d5c0;          /* tan/camel card surfaces, distinct from the page */
+  --text-primary: #3a3f35;     /* dark olive/charcoal body & heading text */
+  --text-secondary: #565b4c;   /* muted olive-gray for captions/hints */
+  --accent-primary: #5f7259;   /* sage green — headings, key numbers, active states */
+  --accent-secondary: #4a4f3c; /* olive green — secondary emphasis */
+  --accent-alert: #5c2a2a;     /* deep maroon — reserved for alerts/warnings only */
 }
 
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-accent-primary: var(--accent-primary);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-accent-alert: var(--accent-alert);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
-  color: var(--foreground);
+  color: var(--text-primary);
   font-family: Arial, Helvetica, sans-serif;
 }

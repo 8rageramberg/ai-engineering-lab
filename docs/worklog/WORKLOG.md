@@ -42,6 +42,26 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-08 — Retone the frontend to a warm earth-tone palette for readability
+- agent: claude-code
+- session_type: coding
+- feature_area: frontend
+- task_id: none
+- summary: Styling-only pass replacing the low-contrast dark-bg/white-card scheme with a
+  warm earth-tone palette (sage green, cream/beige, tan, deep maroon, dark olive), centralized
+  as semantic CSS custom properties + Tailwind v4 `@theme inline` tokens (`background`,
+  `surface`, `text-primary`, `text-secondary`, `accent-primary`, `accent-secondary`,
+  `accent-alert`) in `globals.css` so the palette can be swapped from one place. Retoned
+  `layout.tsx`, `page.tsx`, and `dashboard/page.tsx` to use the new tokens — no layout, data,
+  or functionality changes.
+- changed_files: frontend/src/app/globals.css, frontend/src/app/layout.tsx,
+  frontend/src/app/page.tsx, frontend/src/app/dashboard/page.tsx
+- tests: Verified WCAG AA contrast (4.5:1 normal text, 3:1 large text) programmatically via a
+  luminance/contrast script before settling on the final hex values, then rendered the pages
+  and confirmed visually.
+- tokens/cost: see ai_sessions.jsonl
+- telemetry notes: none — no schema or vocabulary changes.
+
 ### 2026-06-08 — Stand up the local-first MVP skeleton: frontend, backend, DB, and a live telemetry dashboard
 - agent: claude-code
 - session_type: coding

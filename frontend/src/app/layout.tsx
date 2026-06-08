@@ -28,15 +28,15 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-zinc-50 text-zinc-900">
-        <header className="border-b border-zinc-200 bg-white">
+      <body className="min-h-full flex flex-col bg-background text-text-primary">
+        <header className="border-b border-surface bg-background">
           <nav className="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4">
-            <a href="/" className="text-sm font-semibold tracking-tight">
+            <a href="/" className="text-sm font-semibold tracking-tight text-text-primary">
               AI Engineering Lab
             </a>
             <a
               href="/dashboard"
-              className="text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900"
+              className="text-sm font-medium text-text-secondary transition-colors hover:text-accent-primary"
             >
               Telemetry dashboard
             </a>
