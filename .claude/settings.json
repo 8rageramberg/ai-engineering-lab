@@ -27,10 +27,10 @@
       "Edit(.ai/**)",
       "Bash(mkdir -p .claude/*)",
       "Bash(mkdir -p scripts/*)",
-      "Bash(chmod +x scripts/git-hooks/*)"
+      "Bash(chmod +x scripts/git-hooks/*)",
+      "Bash(git push:*)"
     ],
     "ask": [
-      "Bash(git push:*)",
       "Bash(npm install:*)",
       "Bash(pip install:*)",
       "Bash(brew install:*)",
