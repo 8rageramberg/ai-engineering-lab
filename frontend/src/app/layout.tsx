@@ -34,12 +34,20 @@ export default function RootLayout({
             <a href="/" className="text-sm font-semibold tracking-tight text-text-primary">
               AI Engineering Lab
             </a>
-            <a
-              href="/dashboard"
-              className="text-sm font-medium text-text-secondary transition-colors hover:text-accent-primary"
-            >
-              Telemetry dashboard
-            </a>
+            <div className="flex items-center gap-6">
+              <a
+                href="/dashboard"
+                className="text-sm font-medium text-text-secondary transition-colors hover:text-accent-primary"
+              >
+                Telemetry dashboard
+              </a>
+              <a
+                href="/demo-agent"
+                className="text-sm font-medium text-text-secondary transition-colors hover:text-accent-primary"
+              >
+                Demo agent
+              </a>
+            </div>
           </nav>
         </header>
         <main className="flex flex-1 flex-col">{children}</main>

@@ -20,6 +20,53 @@ Add new entries at the top, newest first.
 
 ## Entries
 
+### 2026-06-08 — Wire up the first live AI feature: a constrained demo agent at /demo-agent
+- decision: Replace the stubbed `backend/app/ai/client.py` with a real, narrowly-scoped
+  integration to OpenAI's gpt-4o-mini, and build the project's first live, public-facing AI
+  feature on top of it: a standalone `/demo-agent` page where a visitor types a short
+  question about this project's own telemetry and gets a one-line, model-generated answer.
+  The agent is constrained at every layer simultaneously, per TOKEN_BUDGET.md's existing
+  "App demo agent (in-repo, public-facing)" policy row (cheap model, hard input/rate limits,
+  non-negotiable): the model is hardcoded to gpt-4o-mini in the wrapper (not configurable by
+  callers), the question is capped at 300 characters, the answer is capped at 80 output
+  tokens with a 320-character backstop, a global in-memory rate limiter allows at most 5
+  calls per 60 seconds, and — most importantly — the agent never runs arbitrary queries: it
+  is handed one small, fixed JSON snapshot of `events` data (project summary + last 20
+  sessions) assembled by a single bounded SQL query, and is told via system prompt to answer
+  only from that data and decline anything else. Every successful call emits a real
+  `ai_request_completed` event with genuine token/cost/latency numbers into the same
+  `events` table the dashboard reads from.
+- why: This closes the loop between "this project measures AI usage" and "this project
+  visibly uses AI" — until now the dashboard only displayed numbers about the *building* of
+  the app, never about a feature *of* the app. A general-purpose chat box would have been
+  both off-brand (this is a telemetry-and-cost-discipline portfolio, not a chatbot demo) and
+  a real cost/abuse risk for a public page with no auth. Constraining the agent to only ever
+  see a fixed, pre-shaped snapshot of this project's own data — rather than letting it run
+  queries shaped by user input — makes "narrow by construction" a defensible, demonstrable
+  claim rather than a prompt-level promise that could be argued around.
+- alternatives considered:
+  - Letting the model write/run SQL against `events` directly — rejected outright; this is
+    exactly the "general-purpose capability disguised as a feature" AGENT_CONTRACT.md and
+    TOKEN_BUDGET.md exist to prevent, and is a textbook injection surface on a public page.
+  - A general chat endpoint with a "be helpful about this project" system prompt only —
+    rejected; system-prompt-only constraints are not code-level constraints, and this
+    project's own rules require both.
+  - Per-IP rate limiting — rejected for the MVP; the global in-memory counter is sufficient
+    for a single-instance, local-first app and avoids the "no Redis, no new infra" boundary
+    PROJECT_CONTEXT.md and AGENT_CONTRACT.md both set.
+- impact: `backend/app/ai/client.py` goes from a stubbed interface to the project's first
+  real outbound AI call (the single chokepoint AGENT_CONTRACT.md mandates remains intact —
+  no other module calls a provider). New `backend/app/demo_agent/` package
+  (`repository.py` + `service.py`), new `POST /api/ask` route, new `OPENAI_API_KEY` env var
+  (read via `app/config.py`, documented in the new `backend/.env.example`, loaded into the
+  container at runtime via a docker-compose `env_file` entry pointed at the gitignored
+  `backend/.env`, and excluded from the build context by a new `backend/.dockerignore` so it
+  can never be baked into the image). New `frontend/src/app/demo-agent/page.tsx` and a third
+  nav entry alongside "Telemetry dashboard". No event-schema or controlled-vocabulary
+  changes — `ai_request_completed` with `source: app` / `feature_area: ai` was already
+  specified in TELEMETRY_RULES.md, just never emitted until now.
+- feature_area: ai
+
 ### 2026-06-08 — Replace the "hours of AI-assisted development" headline with an explicit estimate
 - decision: The dashboard's "hours of AI-assisted development" headline (added earlier the
   same day, backed purely by `SUM(created_at - window_started_at)`) silently undercounted —

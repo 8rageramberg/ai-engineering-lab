@@ -1,0 +1,10 @@
+# Keeps the build context (and therefore the image) free of anything that
+# shouldn't ship in a layer. The Dockerfile does `COPY . .` — without this,
+# a real backend/.env sitting next to it at build time would get baked
+# straight into the image. Real config always arrives at runtime via the
+# environment, never from a file copied into the image.
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc

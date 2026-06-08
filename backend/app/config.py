@@ -21,3 +21,8 @@ CORS_ORIGINS = [
 # Internal compose-network URL the backend uses to probe the frontend's
 # reachability for /api/system-status — never exposed to browsers.
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://frontend:3000")
+
+# Read at runtime only — never hardcoded, never logged. Powers the demo agent's
+# live gpt-4o-mini calls (see app/ai/client.py); absence simply means that
+# feature degrades to an explanatory error rather than the app failing to boot.
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")

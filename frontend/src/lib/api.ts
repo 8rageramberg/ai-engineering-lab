@@ -61,6 +61,23 @@ async function getJSON<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export type AskAgentResponse = {
+  answer: string;
+};
+
+// Carries the backend's status code so the UI can tell "your question was too
+// long" (400) and "this demo is rate-limited, try again shortly" (429) apart
+// from a generic failure — the caps and the limit are part of the pitch, not
+// something to paper over with one flat error message.
+export class AskAgentError extends Error {
+  status: number;
+
+  constructor(status: number, detail: string) {
+    super(detail);
+    this.status = status;
+  }
+}
+
 export function getHealth() {
   return getJSON<HealthStatus>("/api/health");
 }
@@ -75,4 +92,22 @@ export function getDailyActivity() {
 
 export function getSystemStatus() {
   return getJSON<SystemStatus>("/api/system-status");
+}
+
+export async function askAgent(question: string): Promise<AskAgentResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/ask`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question }),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const detail =
+      body && typeof body.detail === "string" ? body.detail : `/api/ask responded with ${res.status}`;
+    throw new AskAgentError(res.status, detail);
+  }
+
+  return res.json() as Promise<AskAgentResponse>;
 }

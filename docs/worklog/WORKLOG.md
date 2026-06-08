@@ -42,6 +42,42 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-08 — Ship the demo agent: the project's first live, public-facing AI feature
+- agent: claude-code
+- session_type: coding
+- feature_area: ai
+- task_id: none
+- summary: Built `/demo-agent`, a standalone page where a visitor can ask a short bounded
+  question about this project's own telemetry and get a one-line answer from gpt-4o-mini —
+  the first real AI feature on the site, and the first live use of `backend/app/ai/client.py`
+  (previously a stub). Implemented `POST /api/ask`: it builds a small fixed snapshot of
+  `events` data (`backend/app/demo_agent/repository.py` — one bounded query, never arbitrary
+  SQL), feeds it to gpt-4o-mini behind a tightly-scoped system prompt, enforces a hard
+  300-character input cap, an 80-token/320-character output cap, and a global 5-requests-
+  per-60-seconds rate limit (`backend/app/demo_agent/service.py`), and emits a real
+  `ai_request_completed` event with real token/cost numbers on every successful call —
+  flowing through the exact same `events` table the telemetry dashboard reads from. Wired
+  `OPENAI_API_KEY` through `backend/app/config.py` (env-var only, never hardcoded),
+  documented it in the new `backend/.env.example`, and added a `.dockerignore` plus a
+  docker-compose `env_file` entry so the real key in `backend/.env` (gitignored) reaches the
+  container at runtime without ever being copied into the built image.
+- changed_files: backend/app/ai/client.py, backend/app/config.py, backend/app/main.py,
+  backend/app/demo_agent/ (new: repository.py, service.py, __init__.py),
+  backend/.env.example (new), backend/.dockerignore (new), docker-compose.yml,
+  frontend/src/app/demo-agent/page.tsx (new), frontend/src/app/layout.tsx,
+  frontend/src/lib/api.ts
+- tests: manual end-to-end verification against the running compose stack — sent a real
+  question, confirmed a real answer came back and a real `ai_request_completed` row landed
+  in `events` with genuine token/cost/latency figures that also flowed into the dashboard's
+  aggregate totals; deliberately exceeded the 300-char input cap (got a 400) and the 5/60s
+  rate limit (got 429 on the 6th call within the window); confirmed `output_tokens` on every
+  logged call stayed within the 80-token cap. Confirmed `backend/.env` never appears in
+  `git status` (covered by the existing root `.env` gitignore pattern).
+- tokens/cost: not logged
+- telemetry notes: introduces the first live `ai_request_completed` events with `source: app`
+  and `feature_area: ai` — schema and controlled vocabulary already covered this event type,
+  no additions needed.
+
 ### 2026-06-08 — Fix dashboard headline metrics and a residual live-sync gap
 - agent: claude-code
 - session_type: debugging

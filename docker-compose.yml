@@ -17,6 +17,13 @@ services:
 
   backend:
     build: ./backend
+    # Loads OPENAI_API_KEY (and anything else added later) from backend/.env at
+    # *runtime* — never baked into the image (see backend/.dockerignore).
+    # `required: false` means `docker compose up` works fine without the file;
+    # the demo agent just returns a clear "no key configured" error until it's set.
+    env_file:
+      - path: ./backend/.env
+        required: false
     environment:
       DATABASE_URL: postgresql://portfolio:portfolio@postgres:5432/portfolio
       CORS_ORIGINS: http://localhost:3000
