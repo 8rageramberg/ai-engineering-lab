@@ -2,3 +2,5 @@
 .env
 .env.local
 .ai/session_counter.json
+__pycache__/
+*.pyc

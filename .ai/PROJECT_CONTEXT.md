@@ -12,16 +12,20 @@ records structured evidence of how the work happened.
 - Hiring managers and engineers evaluating the portfolio owner's AI engineering and full-stack skills.
 - The portfolio owner, as a working dashboard for their own AI-assisted development activity.
 
-## Stack (target — not yet built)
-- Frontend: Next.js + Tailwind
-- Backend: FastAPI
-- Database: Postgres (JSONB for flexible metadata; no separate vector DB)
-- Local-first: docker compose
-- Infra: Terraform (only once the app exists; no cloud resources during control-layer/MVP setup)
+## Stack
+- Frontend: Next.js + Tailwind (`frontend/`)
+- Backend: FastAPI (`backend/`)
+- Database: Postgres (JSONB for flexible metadata; no separate vector DB) — schema applied via
+  hand-rolled SQL migrations (`backend/migrations/`, run with `backend/migrate.py`)
+- Local-first: docker compose (`docker-compose.yml` — frontend, backend, Postgres)
+- Infra: Terraform (only once the app needs cloud resources; none yet)
 
 ## Current stage
-Control-layer / planning stage. `AGENTS.md`, `CLAUDE.md`, `.ai/`, and `docs/` exist to define how
-agents work and log activity. No frontend, backend, Terraform, or migration code exists yet.
+Local-first MVP skeleton stage. The control layer (`AGENTS.md`, `CLAUDE.md`, `.ai/`, `docs/`)
+is in place, and a running local skeleton exists: a Next.js landing page and telemetry
+dashboard, a FastAPI backend with a health check and a telemetry-summary endpoint, and a
+Postgres `events` table seeded from `docs/worklog/ai_sessions.jsonl`. See
+[DECISIONS.md](../docs/decisions/DECISIONS.md) for the choices made while building it.
 
 ## MVP boundaries (non-negotiable for now)
 - No auth system — use constrained demos and server-side keys.

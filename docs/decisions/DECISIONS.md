@@ -20,6 +20,49 @@ Add new entries at the top, newest first.
 
 ## Entries
 
+### 2026-06-08 — Stand up the local-first MVP skeleton (frontend, backend, Postgres, dashboard)
+- decision: Build the first running skeleton per the replaceable-components principle:
+  a Next.js + Tailwind frontend (`frontend/`) that talks to FastAPI (`backend/`) only via
+  documented HTTP/JSON endpoints (`frontend/src/lib/api.ts` → `/api/health`,
+  `/api/telemetry/summary`); a FastAPI backend that accesses Postgres only through a
+  data-access seam (`backend/app/db/connection.py` + `backend/app/telemetry/repository.py`,
+  not raw queries in route handlers); a stubbed single AI wrapper
+  (`backend/app/ai/client.py`, interface only, `NotImplementedError` body); and
+  `docker-compose.yml` wiring all three together with config (DB URL, CORS origins, API
+  base URLs) entirely in env vars. For the `events` migration, chose hand-rolled numbered
+  SQL files (`backend/migrations/*.sql` + a tiny `migrate.py` runner with a
+  `schema_migrations` tracking table) over Alembic.
+- why: The task explicitly called for clean seams so each piece (frontend, backend, DB)
+  could be swapped without rewriting the others — matching CLAUDE.md's
+  "replaceable components" principle and the "modular, no overengineering" philosophy in
+  PROJECT_CONTEXT.md. For migrations specifically: the schema is one table with no ORM
+  models anywhere in the app, so Alembic's env.py/versioning machinery would be pure
+  ceremony at this size — a "boring tool" that matches the project's actual complexity was
+  preferred, with a note to revisit if/when the schema grows branches or needs downgrades.
+- alternatives considered:
+  - Alembic for migrations — rejected for now as overkill for a single-table schema with no
+    SQLAlchemy models in the app; would add a dependency and config surface with no payoff
+    yet. Revisit if the schema grows complex enough to need branching/downgrades.
+  - Frontend calling Postgres directly or importing backend internals — rejected; violates
+    the documented-API-contract requirement and would make the backend unswappable.
+  - A single `NEXT_PUBLIC_API_BASE_URL` for both server- and client-rendered fetches —
+    rejected after discovering it breaks in docker compose: server components run inside
+    the frontend container and must reach the backend over the compose network
+    (`http://backend:8000`), while the browser runs on the host and needs the published
+    port (`http://localhost:8000`). Split into `API_BASE_URL` (server-side/internal,
+    compose-only) and `NEXT_PUBLIC_API_BASE_URL` (browser-facing), selected at runtime by
+    `typeof window === "undefined"` in `frontend/src/lib/api.ts`.
+- impact: Establishes the on-disk layout and seams `frontend/`, `backend/app/{db,telemetry,ai}/`,
+  `backend/migrations/` + `migrate.py`, and `docker-compose.yml` follow going forward. Creates
+  the `events` table per `.ai/TELEMETRY_RULES.md` and a `schema_migrations` tracking table.
+  Adds `backend/seed.py`, which loads `docs/worklog/ai_sessions.jsonl` into `events` —
+  columns matching the core schema map directly, everything else
+  (`session_type`, `prompt_count`, `message_count`, `cache_read_tokens`, `summary`,
+  `changed_files`) folds into `metadata` JSONB. Updates `.ai/PROJECT_CONTEXT.md` (stage,
+  stack section now reflects what exists) and `AGENTS.md` (setup commands, repo map,
+  architecture rules) to match reality. No controlled-vocabulary or event-schema changes.
+- feature_area: infra
+
 ### 2026-06-07 — Add `git_hook` as a distinct telemetry source
 - decision: Add `git_hook` to the controlled `source` vocabulary (`.ai/TELEMETRY_RULES.md`,
   `AGENTS.md`, `CLAUDE.md`) for `coding_session_logged` events that are appended automatically by

@@ -42,6 +42,45 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-08 — Stand up the local-first MVP skeleton: frontend, backend, DB, and a live telemetry dashboard
+- agent: claude-code
+- session_type: coding
+- feature_area: infra
+- task_id: none
+- summary: Built the first running, visible skeleton of the portfolio app. Scaffolded
+  `frontend/` (Next.js 16 + Tailwind, App Router) with an intentional landing page and a
+  `/dashboard` page, and `backend/` (FastAPI) with `/api/health` and
+  `/api/telemetry/summary`, talking to Postgres only through a small data-access seam
+  (`app/db/connection.py`, `app/telemetry/repository.py`) plus a stubbed AI wrapper
+  (`app/ai/client.py`). Wrote `docker-compose.yml` running all three together with config
+  in env vars. Added a hand-rolled SQL migration for the `events` table
+  (`backend/migrations/0001_create_events.sql`, applied via `backend/migrate.py`) and a
+  seed script (`backend/seed.py`) that loads the real `coding_session_logged` history from
+  `docs/worklog/ai_sessions.jsonl` into `events`. The dashboard now renders real,
+  non-zero numbers aggregated live from that seeded data — the centerpiece visual for the
+  whole portfolio. Ran `docker compose up`, applied the migration, seeded the data, and
+  walked the full path end to end (landing page → backend health → dashboard → real
+  numbers) before calling it done. Recorded the architecture choices (migration tool,
+  server/browser API URL split discovered while wiring docker networking) in DECISIONS.md
+  and brought `.ai/PROJECT_CONTEXT.md` and `AGENTS.md` up to date with what now exists.
+- changed_files: frontend/ (new — Next.js scaffold + src/app/{layout,page,dashboard/page}.tsx,
+  src/lib/api.ts, Dockerfile), backend/ (new — app/main.py, app/config.py,
+  app/db/connection.py, app/telemetry/repository.py, app/ai/client.py, migrations/,
+  migrate.py, seed.py, requirements.txt, Dockerfile), docker-compose.yml, .gitignore,
+  AGENTS.md, .ai/PROJECT_CONTEXT.md, docs/decisions/DECISIONS.md, docs/worklog/WORKLOG.md
+- tests: no automated test suite yet (none existed to run); verified manually end to end —
+  `docker compose up -d --build` brought up postgres/backend/frontend, `migrate.py`
+  applied the schema, `seed.py` loaded 4 real events, `curl`-equivalent checks against
+  `/api/health` and `/api/telemetry/summary` returned correct live-aggregated figures
+  (1,001,448 tokens / $14.21 / 4 sessions / 3 commits), and both the landing page
+  ("backend online" indicator) and dashboard page (all four stat cards populated with
+  those exact numbers) rendered correctly server-side inside the running containers
+- tokens/cost: not logged here — the post-commit hook will record this commit's actuals
+  automatically once it lands
+- telemetry notes: no vocabulary or schema changes; `events` table now exists and is
+  seeded with the first 4 real `coding_session_logged` rows, giving the dashboard
+  non-placeholder data from day one
+
 ### 2026-06-08 — Add ship-it skill to streamline the commit ritual
 - agent: claude-code
 - session_type: writing

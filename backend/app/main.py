@@ -1,0 +1,24 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.config import CORS_ORIGINS
+from app.telemetry import repository as telemetry_repository
+
+app = FastAPI(title="AI Engineering Lab API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.get("/api/telemetry/summary")
+def telemetry_summary():
+    return telemetry_repository.get_summary()
