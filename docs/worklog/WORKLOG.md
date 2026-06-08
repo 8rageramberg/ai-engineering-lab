@@ -42,6 +42,40 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-08 — Fix dashboard headline metrics and a residual live-sync gap
+- agent: claude-code
+- session_type: debugging
+- feature_area: observability
+- task_id: none
+- summary: The newly-shipped "hours of AI-assisted development" headline was showing 1.0
+  hours when the real figure was closer to 4 — `window_started_at` (the field it summed)
+  only exists on rows logged after it was added that same morning, so all four day-one
+  sessions silently contributed zero. While investigating, also found the live `events`
+  table itself was missing 3 real commits' worth of rows (`f374e31`, `e28c9db`, `dea2a6b`)
+  — they landed in the gap between the initial seed and the dual-write hook going live, and
+  were never backfilled, undercounting every aggregate stat by those rows. Fixed both:
+  re-ran `seed.py` (its `ON CONFLICT (id) DO NOTHING` made this safe — it only inserted the
+  3 missing rows) to bring the live table to parity with the jsonl (15/14/53/$28.16); and
+  replaced the broken hours calculation with an explicit, labeled approximation —
+  `tracked_dev_hours` (precisely measured, same SUM as before, grows more accurate over
+  time) plus a fixed, hand-supplied `PRE_TRACKING_HOURS_ESTIMATE = 3.0` constant for the
+  unmeasurable day-one work, with the full breakdown spelled out in the dashboard caption.
+  Also replaced the never-displayed, since-removed hours figure's sibling problem — the
+  "coding sessions logged" vs "commits shipped" mismatch looking like a bug — with a hint
+  explaining that purely-exploratory sessions can outnumber commits; and surfaced the
+  prompt-counting system (`prompt_count`, logged on every row but never shown) as its own
+  fully-accurate "prompts sent to build this" headline (53, summed with zero estimation).
+- changed_files: backend/app/telemetry/repository.py, frontend/src/lib/api.ts,
+  frontend/src/app/dashboard/page.tsx, docs/decisions/DECISIONS.md
+- tests: rebuilt backend+frontend, queried `get_summary()` directly in the running
+  container before and after the reseed (12/11/$24.39 → 15/14/$28.16, confirming the 3
+  missing rows landed and nothing duplicated), and fetched the rendered dashboard HTML to
+  confirm the new headline values (53 prompts, ≈4.0h with the 1.0h/3.0h breakdown in the
+  caption) and stat hints render as written.
+- tokens/cost: see ai_sessions.jsonl
+- telemetry notes: none — no vocabulary or schema changes; `PRE_TRACKING_HOURS_ESTIMATE` is
+  a documented, hardcoded constant in `repository.py`, not an event field.
+
 ### 2026-06-08 — Fix live telemetry sync and add hours/calendar metrics to the dashboard
 - agent: claude-code
 - session_type: coding

@@ -35,7 +35,7 @@ export default async function Dashboard() {
         {
           label: "Coding sessions logged",
           value: numberFormatter.format(summary.session_count),
-          hint: `across ${numberFormatter.format(summary.commit_count)} commits with an attached telemetry event`,
+          hint: `landed as ${numberFormatter.format(summary.commit_count)} commits — sessions can outnumber commits when one is purely exploratory and produces no commit`,
         },
       ]
     : [];
@@ -59,17 +59,39 @@ export default async function Dashboard() {
 
         {summary ? (
           <>
-            <div className="mt-12 rounded-xl border border-text-secondary/15 bg-surface p-8 shadow-sm">
-              <p className="text-sm font-medium text-text-secondary">
-                Hours of AI-assisted development
-              </p>
-              <p className="mt-2 text-5xl font-semibold tracking-tight text-accent-primary">
-                {hoursFormatter.format(summary.total_dev_hours)}
-              </p>
-              <p className="mt-2 text-xs text-text-secondary">
-                wall-clock time from each session&apos;s first prompt to its landing commit,
-                summed across every logged session
-              </p>
+            <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border border-text-secondary/15 bg-surface p-8 shadow-sm">
+                <p className="text-sm font-medium text-text-secondary">
+                  Prompts sent to build this
+                </p>
+                <p className="mt-2 text-5xl font-semibold tracking-tight text-accent-primary">
+                  {numberFormatter.format(summary.total_prompt_count)}
+                </p>
+                <p className="mt-2 text-xs text-text-secondary">
+                  summed straight from each session&apos;s prompt counter — every
+                  back-and-forth that went into building this, no estimation
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-text-secondary/15 bg-surface p-8 shadow-sm">
+                <p className="text-sm font-medium text-text-secondary">
+                  Hours of AI-assisted development
+                </p>
+                <p className="mt-2 text-5xl font-semibold tracking-tight text-accent-primary">
+                  ≈ {hoursFormatter.format(summary.total_dev_hours_estimate)}
+                </p>
+                <p className="mt-2 text-xs text-text-secondary">
+                  an approximation: {hoursFormatter.format(summary.tracked_dev_hours)}h is
+                  measured precisely (commit time minus session-start time, summed per
+                  session) — tracking began on day two. The other{" "}
+                  {hoursFormatter.format(
+                    summary.total_dev_hours_estimate - summary.tracked_dev_hours
+                  )}
+                  h is a one-time hand-estimate covering day-one sessions logged before
+                  that measurement existed. The estimate&apos;s share shrinks on its own as
+                  more precisely-tracked hours stack on top of it.
+                </p>
+              </div>
             </div>
 
             <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">

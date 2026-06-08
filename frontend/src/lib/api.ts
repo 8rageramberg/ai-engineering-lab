@@ -20,7 +20,9 @@ export type TelemetrySummary = {
   total_cost_usd: number;
   session_count: number;
   commit_count: number;
-  total_dev_hours: number;
+  total_prompt_count: number;
+  tracked_dev_hours: number;
+  total_dev_hours_estimate: number;
 };
 
 export type DailyActivity = {

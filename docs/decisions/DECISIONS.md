@@ -20,6 +20,44 @@ Add new entries at the top, newest first.
 
 ## Entries
 
+### 2026-06-08 — Replace the "hours of AI-assisted development" headline with an explicit estimate
+- decision: The dashboard's "hours of AI-assisted development" headline (added earlier the
+  same day, backed purely by `SUM(created_at - window_started_at)`) silently undercounted —
+  `window_started_at` only exists on rows logged after it was added that morning, so the
+  four day-one sessions (2026-06-07, by far the largest chunk of real work) contributed
+  zero. Rather than removing the metric outright, split it into two explicit, labeled parts:
+  a `tracked_dev_hours` figure computed precisely the same way as before (and which only
+  grows more accurate and complete as more `window_started_at`-bearing rows accumulate), plus
+  a fixed constant `PRE_TRACKING_HOURS_ESTIMATE = 3.0` (`backend/app/telemetry/repository.py`)
+  — a one-time, hand-supplied estimate of day-one work, supplied by the person who did it.
+  The displayed headline is their sum, prefixed with "≈" and captioned with the exact
+  breakdown and the reason a manual estimate exists at all.
+- why: The honest options were: (a) keep summing only tracked rows and silently misrepresent
+  total hours as ~1 instead of ~4 (the bug just found), (b) remove the metric (the
+  immediately-prior decision, made before realizing a defensible middle path existed), or
+  (c) be transparent that day-one hours were never measured, name a number for them anyway
+  (supplied by the person who actually did the work, not invented by the agent), and label
+  the whole thing as an approximation. Option (c) keeps a meaningful, human-relatable metric
+  on the dashboard without violating the "no guesswork" framing — the guesswork is disclosed,
+  attributed, and bounded to a fixed offset whose share of the total shrinks on its own as
+  `tracked_dev_hours` grows.
+- alternatives considered:
+  - Backfilling `window_started_at` onto the four day-one rows — rejected; the data was
+    never captured and any value written now would be fabricated, not estimated.
+  - Silently keeping the original SUM-only calculation — rejected; this is the bug itself
+    (a confidently-wrong "1.0 hours" headline that undercounts real work by roughly 4x).
+  - Removing the metric outright — viable and was the immediately-preceding decision, but
+    a labeled approximation with disclosed methodology is more informative and more in the
+    spirit of a portfolio dashboard than no metric at all, as long as the estimate is
+    transparent about what it is.
+- impact: `get_summary()` now returns `tracked_dev_hours` and `total_dev_hours_estimate`
+  instead of the removed `total_dev_hours`; `TelemetrySummary` (`frontend/src/lib/api.ts`)
+  and the dashboard headline (`frontend/src/app/dashboard/page.tsx`) updated to match and to
+  render the full breakdown in the caption, not just the headline number. No
+  controlled-vocabulary or `events`-schema changes — `PRE_TRACKING_HOURS_ESTIMATE` is a
+  hardcoded constant, documented in code as a fixed, never-recomputed offset.
+- feature_area: observability
+
 ### 2026-06-08 — Persist `window_started_at` on every `coding_session_logged` row
 - decision: Add `window_started_at` (the session-start timestamp already tracked in
   `.ai/session_counter.json` and used to scope transcript enrichment) to the
