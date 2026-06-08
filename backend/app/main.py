@@ -41,6 +41,11 @@ def system_status():
     return system_status_service.get_status()
 
 
+@app.get("/api/demo-agent/stats")
+def demo_agent_stats():
+    return demo_agent_service.get_usage_stats()
+
+
 @app.post("/api/ask")
 def ask(payload: AskRequest):
     try:

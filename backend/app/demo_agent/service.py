@@ -34,6 +34,13 @@ from app.demo_agent import repository
 # knows this is a "short bounded question" feature, not a text box for essays.
 MAX_QUESTION_LENGTH = 300
 
+# Stamped into every event this agent emits (metadata.agent_name) so usage can
+# be aggregated cleanly for *this* agent specifically — separate from any other
+# in-app AI feature that might exist later, and from the coding-agent layer's
+# `coding_session_logged` events (source: git_hook), per PROJECT_CONTEXT.md's
+# "two agent layers, do not merge early" rule.
+AGENT_NAME = "demo_agent"
+
 # Hard output caps: a provider-side token ceiling (what actually bounds cost)
 # plus a character backstop on the returned text (what guarantees the UI shows
 # a glanceable one-liner even if the model ignores the instruction to be terse).
@@ -141,7 +148,7 @@ def _record_event(response: ai_client.AIResponse, latency_ms: int) -> None:
                     "estimated_cost_usd": estimated_cost_usd,
                     "latency_ms": latency_ms,
                     "success": True,
-                    "metadata": json.dumps({"endpoint": "/api/ask"}),
+                    "metadata": json.dumps({"endpoint": "/api/ask", "agent_name": AGENT_NAME}),
                 },
             )
         conn.commit()
@@ -172,3 +179,11 @@ def ask(question: str) -> dict:
         answer = answer[:MAX_ANSWER_LENGTH].rstrip() + "…"
 
     return {"answer": answer}
+
+
+def get_usage_stats() -> dict:
+    """This agent's own lifetime usage — questions answered, tokens, cost —
+    aggregated straight from the ai_request_completed events it has emitted.
+    Powers the small usage strip on the demo agent page: real numbers from the
+    same pipeline the telemetry dashboard reads, not a separate counter."""
+    return repository.get_agent_usage_stats(AGENT_NAME)

@@ -65,6 +65,12 @@ export type AskAgentResponse = {
   answer: string;
 };
 
+export type DemoAgentStats = {
+  questions_answered: number;
+  total_tokens: number;
+  total_cost_usd: number;
+};
+
 // Carries the backend's status code so the UI can tell "your question was too
 // long" (400) and "this demo is rate-limited, try again shortly" (429) apart
 // from a generic failure — the caps and the limit are part of the pitch, not
@@ -92,6 +98,10 @@ export function getDailyActivity() {
 
 export function getSystemStatus() {
   return getJSON<SystemStatus>("/api/system-status");
+}
+
+export function getDemoAgentStats() {
+  return getJSON<DemoAgentStats>("/api/demo-agent/stats");
 }
 
 export async function askAgent(question: string): Promise<AskAgentResponse> {

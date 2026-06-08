@@ -30,6 +30,36 @@ RECENT_SESSIONS_QUERY = """
     LIMIT %(limit)s
 """
 
+# Scoped to this agent's own ai_request_completed events via metadata.agent_name
+# (stamped on every row this agent emits — see service.AGENT_NAME) rather than
+# feature_area alone, so usage stays cleanly separable from any other in-app AI
+# feature that might land later, and from the coding-agent layer entirely
+# (which never writes ai_request_completed rows). Keeps the "two agent layers,
+# do not merge early" boundary from PROJECT_CONTEXT.md intact in the data itself.
+AGENT_USAGE_QUERY = """
+    SELECT
+        COUNT(*)                              AS questions_answered,
+        COALESCE(SUM(total_tokens), 0)        AS total_tokens,
+        COALESCE(SUM(estimated_cost_usd), 0)  AS total_cost_usd
+    FROM events
+    WHERE event_type = 'ai_request_completed'
+      AND metadata->>'agent_name' = %(agent_name)s
+"""
+
+
+def get_agent_usage_stats(agent_name: str) -> dict:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(AGENT_USAGE_QUERY, {"agent_name": agent_name})
+            row = cur.fetchone()
+
+    questions_answered, total_tokens, total_cost_usd = row
+    return {
+        "questions_answered": int(questions_answered),
+        "total_tokens": int(total_tokens),
+        "total_cost_usd": float(total_cost_usd),
+    }
+
 
 def _get_recent_sessions() -> list[dict]:
     with get_connection() as conn:

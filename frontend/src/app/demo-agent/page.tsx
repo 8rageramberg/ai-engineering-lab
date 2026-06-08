@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { askAgent, AskAgentError } from "@/lib/api";
+import { useEffect, useState, type FormEvent } from "react";
+import { askAgent, AskAgentError, getDemoAgentStats, type DemoAgentStats } from "@/lib/api";
 
 const MAX_QUESTION_LENGTH = 300;
 
@@ -11,6 +11,14 @@ const EXAMPLE_QUESTIONS = [
   "What was the most recent thing built here?",
 ];
 
+const numberFormatter = new Intl.NumberFormat("en-US");
+const costFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 4,
+});
+
 type Status = "idle" | "loading" | "answered" | "error";
 
 export default function DemoAgentPage() {
@@ -18,6 +26,17 @@ export default function DemoAgentPage() {
   const [answer, setAnswer] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
+  const [stats, setStats] = useState<DemoAgentStats | null>(null);
+
+  function refreshStats() {
+    getDemoAgentStats()
+      .then(setStats)
+      .catch(() => {});
+  }
+
+  useEffect(() => {
+    refreshStats();
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -32,6 +51,7 @@ export default function DemoAgentPage() {
       const response = await askAgent(trimmed);
       setAnswer(response.answer);
       setStatus("answered");
+      refreshStats();
     } catch (err) {
       const message =
         err instanceof AskAgentError
@@ -62,6 +82,24 @@ export default function DemoAgentPage() {
           data the dashboard reads from. The call is real — it shows up in that dashboard&apos;s
           totals moments later.
         </p>
+
+        {stats && (
+          <p className="mt-4 text-xs text-text-secondary">
+            This agent has answered{" "}
+            <span className="font-semibold text-text-primary">
+              {numberFormatter.format(stats.questions_answered)}
+            </span>{" "}
+            question{stats.questions_answered === 1 ? "" : "s"} so far, using{" "}
+            <span className="font-semibold text-text-primary">
+              {numberFormatter.format(stats.total_tokens)}
+            </span>{" "}
+            tokens at an estimated{" "}
+            <span className="font-semibold text-text-primary">
+              {costFormatter.format(stats.total_cost_usd)}
+            </span>{" "}
+            (priced at gpt-4o-mini&apos;s list rates — not an actual invoice).
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="mt-10">
           <label htmlFor="question" className="text-sm font-medium text-text-secondary">

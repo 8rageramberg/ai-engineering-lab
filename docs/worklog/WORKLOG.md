@@ -42,6 +42,40 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-08 — Add a "this agent's own usage" stats strip to the demo agent page
+- agent: claude-code
+- session_type: coding
+- feature_area: ai
+- task_id: none
+- summary: Added a small, modest usage strip to `/demo-agent` — questions answered, total
+  tokens, total estimated cost — sourced live from this agent's own `ai_request_completed`
+  events, with the same honest "priced at list rates, not an actual invoice" framing the
+  telemetry dashboard already uses. To scope the aggregate cleanly to *this* agent (and keep
+  the in-app agent layer separable from any future one, per PROJECT_CONTEXT.md's "two agent
+  layers, do not merge early" rule), every event this agent emits now carries
+  `metadata.agent_name = "demo_agent"` (`backend/app/demo_agent/service.AGENT_NAME`); a new
+  bounded query (`repository.get_agent_usage_stats`) aggregates strictly on
+  `event_type = 'ai_request_completed' AND metadata->>'agent_name' = 'demo_agent'` and is
+  exposed via a new `GET /api/demo-agent/stats`. Backfilled `agent_name` onto the 10
+  pre-existing `ai_request_completed` rows from earlier verification so the strip reflects
+  this agent's full real history from the moment it shipped, not just from this change
+  forward. The frontend fetches stats on page load and again right after each successful
+  answer, so the strip visibly increments in front of the visitor.
+- changed_files: backend/app/demo_agent/service.py, backend/app/demo_agent/repository.py,
+  backend/app/main.py, frontend/src/app/demo-agent/page.tsx, frontend/src/lib/api.ts
+- tests: manual end-to-end against the running compose stack — confirmed `/api/demo-agent/stats`
+  returns real non-zero numbers (`questions_answered: 10, total_tokens: 20604,
+  total_cost_usd: 0.003145`), asked one more real question, and confirmed the endpoint
+  incremented to `11 / 22729 / 0.003472` immediately after — i.e. the strip reflects genuine,
+  live usage, not a static or cached figure. Confirmed the stats-rendering code shipped in
+  the client bundle (the strip is fetched client-side after mount, so it doesn't appear in
+  the server-rendered HTML — by design, same pattern as the rest of this interactive page).
+- tokens/cost: not logged
+- telemetry notes: introduces `metadata.agent_name` as the scoping convention for any in-app
+  agent's own telemetry — not a controlled-vocabulary or schema change (still plain JSONB),
+  but worth knowing about if/when a second in-app agent lands: give it its own `agent_name`
+  and it stays cleanly separable in aggregate queries.
+
 ### 2026-06-08 — Ship the demo agent: the project's first live, public-facing AI feature
 - agent: claude-code
 - session_type: coding
