@@ -26,12 +26,15 @@ git config core.hooksPath scripts/git-hooks
 
 ## Commit-driven telemetry
 Every commit on a clone with `core.hooksPath` set as above runs
-[scripts/git-hooks/post-commit](scripts/git-hooks/post-commit), which appends one
-`coding_session_logged` row (source `git_hook`) to `docs/worklog/ai_sessions.jsonl` automatically —
-deriving `commit_sha`, `feature_area`, `summary` (the commit message), `changed_files`, and
-best-effort token counts, with zero typed input. It never blocks or fails a commit; on any error it
-writes nulls and logs a warning to stderr. `scripts/log_ai_session.py` remains available as a manual
-fallback for meaningful sessions that don't end in a commit.
+[scripts/git-hooks/post-commit](scripts/git-hooks/post-commit), which logs one
+`coding_session_logged` row (source `git_hook`) automatically — deriving `commit_sha`,
+`feature_area`, `summary` (the commit message), `changed_files`, and best-effort token counts, with
+zero typed input. It dual-writes that row: appending it to `docs/worklog/ai_sessions.jsonl` (the
+durable, human-auditable system of record) and inserting it directly into the live `events` table
+(via `docker compose exec postgres psql`, so the dashboard reflects the commit immediately with no
+manual reseed). It never blocks or fails a commit; on any error in either path it degrades to
+nulls/a stderr warning rather than a non-zero exit. `scripts/log_ai_session.py` remains available as
+a manual fallback for meaningful sessions that don't end in a commit.
 
 ## Repo map (current)
 - `AGENTS.md` — this file, generic agent onboarding
