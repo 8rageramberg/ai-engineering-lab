@@ -17,3 +17,7 @@ CORS_ORIGINS = [
     for origin in os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(",")
     if origin.strip()
 ]
+
+# Internal compose-network URL the backend uses to probe the frontend's
+# reachability for /api/system-status — never exposed to browsers.
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://frontend:3000")

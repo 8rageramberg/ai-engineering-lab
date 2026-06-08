@@ -1,4 +1,5 @@
 import { getTelemetrySummary } from "@/lib/api";
+import { SystemStatus } from "./SystemStatus";
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 const costFormatter = new Intl.NumberFormat("en-US", {
@@ -74,6 +75,8 @@ export default async function Dashboard() {
             database has been seeded.
           </div>
         )}
+
+        <SystemStatus />
       </div>
     </div>
   );

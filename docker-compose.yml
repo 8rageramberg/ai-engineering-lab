@@ -21,10 +21,15 @@ services:
       DATABASE_URL: postgresql://portfolio:portfolio@postgres:5432/portfolio
       CORS_ORIGINS: http://localhost:3000
       WORKLOG_PATH: /app/docs/worklog/ai_sessions.jsonl
+      FRONTEND_URL: http://frontend:3000
     ports:
       - "8000:8000"
     volumes:
       - ./docs/worklog:/app/docs/worklog:ro
+      # Read-only access to the Docker Engine API for /api/system-status's
+      # per-container CPU/memory signals — see DECISIONS.md for why this is
+      # an acceptable seam for a local-first portfolio app.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       postgres:
         condition: service_healthy

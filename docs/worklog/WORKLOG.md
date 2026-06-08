@@ -42,6 +42,32 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-08 — Add a polled live system-status view to the dashboard
+- agent: claude-code
+- session_type: coding
+- feature_area: observability
+- task_id: none
+- summary: Added a second observability "tile" — service health, uptime, and per-container
+  CPU/memory — refreshed by polling `GET /api/system-status` every 5 seconds. New backend
+  package `backend/app/system_status/` aggregates frontend/backend/database health checks
+  and per-container stats (via the `docker` Python SDK over a read-only-mounted Docker
+  socket, looked up by `com.docker.compose.service` label); new client component
+  `SystemStatus.tsx` polls and renders it using the existing palette tokens. Deliberately
+  boring: no websockets, no Prometheus/Grafana — just a `setInterval` fetch, per the MVP
+  boundary against realtime infrastructure.
+- changed_files: backend/app/system_status/{__init__,docker_stats,service}.py,
+  backend/app/config.py, backend/app/main.py, backend/requirements.txt, docker-compose.yml,
+  frontend/src/app/dashboard/SystemStatus.tsx, frontend/src/app/dashboard/page.tsx,
+  frontend/src/lib/api.ts
+- tests: Ran the full stack, loaded the dashboard, and watched the section update with real
+  live numbers. Then actually stopped the backend (`docker compose stop backend`) and
+  confirmed the section fell back to its "unreachable" state within one poll cycle, then
+  restarted it and confirmed recovery to all-healthy within ~10 seconds — verified via
+  Playwright screenshots at each stage, not assumed.
+- tokens/cost: see ai_sessions.jsonl
+- telemetry notes: none — this is read-only operational data surfaced through its own
+  endpoint, not a `coding_session_logged`/`events` row; no schema or vocabulary changes.
+
 ### 2026-06-08 — Retone the frontend to a warm earth-tone palette for readability
 - agent: claude-code
 - session_type: coding

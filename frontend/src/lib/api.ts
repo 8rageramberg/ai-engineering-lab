@@ -22,6 +22,29 @@ export type TelemetrySummary = {
   commit_count: number;
 };
 
+export type ContainerStats = {
+  name: string;
+  state: string;
+  uptime_seconds: number | null;
+  cpu_percent: number | null;
+  memory_used_bytes: number | null;
+  memory_limit_bytes: number | null;
+  memory_percent: number | null;
+};
+
+export type ServiceStatus = {
+  name: string;
+  status: "up" | "down" | string;
+  detail: string;
+  container: ContainerStats | null;
+};
+
+export type SystemStatus = {
+  checked_at: string;
+  backend_uptime_seconds: number;
+  services: ServiceStatus[];
+};
+
 async function getJSON<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, { cache: "no-store" });
   if (!res.ok) {
@@ -36,4 +59,8 @@ export function getHealth() {
 
 export function getTelemetrySummary() {
   return getJSON<TelemetrySummary>("/api/telemetry/summary");
+}
+
+export function getSystemStatus() {
+  return getJSON<SystemStatus>("/api/system-status");
 }

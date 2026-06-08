@@ -20,6 +20,43 @@ Add new entries at the top, newest first.
 
 ## Entries
 
+### 2026-06-08 — Add a polled live system-status view via the Docker Engine API
+- decision: Add a second observability view to the dashboard — "is this system alive right
+  now, and how is it doing" — backed by a new `GET /api/system-status` endpoint
+  (`backend/app/system_status/{service,docker_stats}.py`) that reports per-service health
+  (frontend via an HTTP reachability probe, backend trivially up, database via `SELECT 1`),
+  backend process uptime, and per-container CPU/memory/uptime. Container stats are gathered
+  via the official `docker` Python SDK (`docker==7.1.0`) over a **read-only**-mounted
+  `/var/run/docker.sock`, looking containers up by their stable `com.docker.compose.service`
+  label. The frontend (`SystemStatus.tsx`) polls this endpoint every 5 seconds with a plain
+  `setInterval` and renders a second "tile" alongside the cost/token telemetry view, using
+  only the existing palette tokens (sage/olive for healthy, maroon `accent-alert` for down).
+- why: A portfolio app showing what it cost to build is more convincing if it can also show
+  that the thing it built is alive and well. Polling was chosen deliberately over
+  websockets/SSE/Prometheus-Grafana — `.ai/PROJECT_CONTEXT.md` explicitly warns against
+  premature realtime infrastructure, and a 5-second poll is indistinguishable from "live" to
+  a human looking at a dashboard. The Docker SDK was chosen over shelling out to
+  `docker stats` because it talks to the daemon directly over the already-available socket,
+  returns structured JSON, and needs no extra CLI binary in the image.
+- alternatives considered:
+  - WebSockets / SSE / a streaming infra layer — rejected outright per the documented MVP
+    boundary against realtime infrastructure; would be exactly the kind of premature
+    investment this stage of the project is supposed to avoid.
+  - Shelling out to `docker stats --no-stream` — rejected; the SDK gives the same data as
+    structured JSON without invoking a subprocess or depending on the CLI being present in
+    the image.
+  - Frontend reaching into Docker directly — rejected outright; violates the
+    replaceable-components principle. The frontend only ever sees this through the
+    documented `/api/system-status` contract, same as every other piece of data it shows.
+- impact: New read-only Docker socket mount on the backend service in `docker-compose.yml`
+  (commented in place explaining why this is an acceptable seam for a local-first portfolio
+  app), new `FRONTEND_URL` config var, new `backend/app/system_status/` package, new
+  `docker==7.1.0` dependency. The endpoint degrades gracefully — `container: null` when
+  Docker access is unavailable, independent per-service checks so one failing check never
+  blanks the others, and the whole endpoint never errors. No controlled-vocabulary or
+  `events`-schema changes; this is read-only operational data, not a telemetry event.
+- feature_area: observability
+
 ### 2026-06-08 — Stand up the local-first MVP skeleton (frontend, backend, Postgres, dashboard)
 - decision: Build the first running skeleton per the replaceable-components principle:
   a Next.js + Tailwind frontend (`frontend/`) that talks to FastAPI (`backend/`) only via
