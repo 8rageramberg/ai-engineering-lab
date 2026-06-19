@@ -47,6 +47,7 @@ Controlled source values:
 - scheduled_job
 - mobile
 - git_hook
+- session_end
 
 After meaningful work:
 - Summarize changed files

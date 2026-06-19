@@ -51,7 +51,7 @@ CREATE TABLE events (
 
 `session_type`: coding | debugging | architecture | writing | review | planning | other
 
-`source`: app | manual | github | scheduled_job | mobile | git_hook
+`source`: app | manual | github | scheduled_job | mobile | git_hook | session_end
 
 `model_provider`: anthropic | openai | local | other
 

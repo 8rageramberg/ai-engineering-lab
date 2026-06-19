@@ -20,6 +20,36 @@ Add new entries at the top, newest first.
 
 ## Entries
 
+### 2026-06-19 — Add end-session skill to log planning/architecture work without commits
+- decision: Create a new skill (`.claude/skills/end-session/`) that logs non-commit sessions
+  (planning, architecture, debugging, writing, review) to telemetry. The skill reads the
+  accumulated `prompt_count` and `message_count` from `.ai/session_counter.json`, asks the user
+  for a `session_type` (the only manual input required), derives the true session start from
+  transcripts, writes one `coding_session_logged` row to `ai_sessions.jsonl` with `source: "session_end"`,
+  and resets the counter. This introduces a new `source` value: `session_end` (distinct from
+  `git_hook` for commits and `manual` for the legacy logger).
+- why: The post-commit hook only logs work that lands as commits. Planning, architecture, and
+  debugging sessions are real work that consumes tokens but often produce no code commits. These
+  sessions were either invisible to telemetry or required manual form-filling via
+  `log_ai_session.py`. The end-session skill makes planning work visible while staying frictionless
+  (one-line trigger, one question to answer). This closes the gap between "coding work" (commit-driven)
+  and "thinking work" (session-driven), so the dashboard shows the full picture of development
+  activity — both shipped code and the design/planning that preceded it.
+- alternatives considered:
+  - Make the hook detect planning sessions heuristically — rejected; there's no signal in git that
+    determines session type, and the hook would need to ask the user anyway.
+  - Keep planning sessions completely invisible — rejected; they consume tokens and represent real
+    work that contributes to the project's portfolio value, and should be visible for transparency.
+  - Require manual `log_ai_session.py` form-filling — rejected; that violates the "frictionless"
+    principle and would see low adoption.
+- impact: Adds `session_end` to the controlled `source` vocabulary in `TELEMETRY_RULES.md`,
+  `AGENTS.md`, and `CLAUDE.md`. Planning/architecture sessions now appear in `ai_sessions.jsonl`
+  with `source: "session_end"` and populated `session_type` (unlike git-hook rows which have
+  `session_type: null`). No changes to the events schema, only a new source value. Future work:
+  consider heuristically backfilling `session_type` on historical git-hook rows by analyzing
+  commit messages and changed-file patterns to infer session purpose (feature, refactor, docs, etc.).
+- feature_area: observability
+
 ### 2026-06-08 — Add repo-path gating to telemetry hooks for true project isolation
 - decision: Modify the `UserPromptSubmit` and `Stop` hook scripts to gate on the current git
   repository's absolute path. The hooks now check `git rev-parse --show-toplevel` at runtime and

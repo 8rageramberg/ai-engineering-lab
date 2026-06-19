@@ -42,6 +42,25 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-19 — Add end-session skill for non-commit session logging
+- agent: claude-code
+- session_type: architecture
+- feature_area: observability
+- task_id: none
+- summary: Built the `end-session` skill to log planning/architecture/debugging sessions without
+  requiring commits. Sessions that don't produce code (pure design, thinking, investigation) now
+  get logged to telemetry with proper `session_type` labels, making the full development mix
+  visible (coded work + thinking work) and closing the gap in what the dashboard can show.
+- changed_files: `.claude/skills/end-session/SKILL.md`, `.claude/skills/end-session/end_session.py`,
+  `.ai/TELEMETRY_RULES.md`, `AGENTS.md`, `CLAUDE.md`, `docs/decisions/DECISIONS.md`
+- tests: manual — skill implementation is straightforward (reads counter, asks for session_type,
+  writes row, resets counter); will be tested when next planning session is logged via the skill
+- tokens/cost: not logged
+- telemetry notes: introduces `source: "session_end"` as a new controlled vocabulary value (distinct
+  from `git_hook` commits and `manual` legacy logger). End-session rows will have populated
+  `session_type` unlike git-hook rows. Consider future backfill of `session_type` on git-hook rows
+  via heuristics (analyze commit messages + changed files).
+
 ### 2026-06-08 — Enforce telemetry isolation by repo path in session counter hook
 - agent: claude-code
 - session_type: architecture
