@@ -20,6 +20,39 @@ Add new entries at the top, newest first.
 
 ## Entries
 
+### 2026-06-08 — Add repo-path gating to telemetry hooks for true project isolation
+- decision: Modify the `UserPromptSubmit` and `Stop` hook scripts to gate on the current git
+  repository's absolute path. The hooks now check `git rev-parse --show-toplevel` at runtime and
+  only increment the session counter (`.ai/session_counter.json`) if the current working directory
+  belongs to this specific repo. Sessions in other repos, or non-git directories, exit silently
+  without counting. This ensures that telemetry for one project is never polluted by AI activity
+  from sessions in other projects, even when the hooks are defined at the project level in
+  `.claude/settings.json`.
+- why: The initial hook design fired globally for any Claude Code session, regardless of which
+  repo the session was pointing at. This violated the principle of separability: a user working on
+  two different projects in two different VS Code windows would have all their telemetry
+  cross-contaminated into a single project's counter. This is both a data-integrity issue
+  (telemetry for Project A incorrectly includes Project B's activity) and a governance issue (you
+  cannot trust the numbers if you have multiple projects). The fix is structural, not
+  documentation-only — it enforces isolation in code, not as a promise.
+- alternatives considered:
+  - Move the hooks to user-level settings (`~/.claude/settings.json`) — rejected; it would only
+    move the problem, not solve it, since user-level hooks still fire globally.
+  - Document the limitation and accept cross-project telemetry — rejected; this violates the
+    core principle that telemetry must be honest and durable, and makes any multi-project
+    workflow unreliable.
+  - Ask the user to switch to a different user account for each project — rejected; solving
+    infrastructure problems with policy is not in the spirit of the "boring, maintainable"
+    philosophy.
+- impact: `.claude/hooks/bump_session_counter.py` now imports `subprocess` and includes an
+  `is_correct_repo()` function that verifies the current working directory's git root. No
+  changes to the hook configuration, to `.ai/session_counter.json` structure, or to telemetry
+  event schema. Existing rows remain unchanged. All future sessions in this repo will only
+  count activity from this repo; sessions in other projects will not contribute to this
+  project's counter. When the user sets up a second project with its own hooks, that project's
+  telemetry will be similarly isolated.
+- feature_area: observability
+
 ### 2026-06-08 — Wire up the first live AI feature: a constrained demo agent at /demo-agent
 - decision: Replace the stubbed `backend/app/ai/client.py` with a real, narrowly-scoped
   integration to OpenAI's gpt-4o-mini, and build the project's first live, public-facing AI

@@ -42,6 +42,26 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-08 — Enforce telemetry isolation by repo path in session counter hook
+- agent: claude-code
+- session_type: architecture
+- feature_area: observability
+- task_id: none
+- summary: Discovered and fixed a telemetry isolation leak — hooks were firing globally across
+  all Claude Code sessions regardless of project, so a user working on two different repos would
+  have cross-contaminated counters. Added repo-path verification to `.claude/hooks/bump_session_counter.py`;
+  the hook now checks `git rev-parse --show-toplevel` at runtime and only increments the counter
+  if the current working directory matches this repo. Sessions in other projects exit silently.
+  Verified isolation works end to end: sent test prompts in a separate repo and confirmed they
+  no longer affected this project's counter.
+- changed_files: .claude/hooks/bump_session_counter.py, docs/decisions/DECISIONS.md
+- tests: manual isolation test — sent one prompt in a separate git repo, confirmed the counter in
+  this repo did not change; sent a prompt in this repo, confirmed it incremented by exactly 1.
+- tokens/cost: not logged
+- telemetry notes: fixes a governance issue where telemetry accuracy depended on the user not
+  working on multiple projects simultaneously. No schema or vocabulary changes — existing rows
+  and counters unaffected, all future rows correctly scoped.
+
 ### 2026-06-08 — Add a "this agent's own usage" stats strip to the demo agent page
 - agent: claude-code
 - session_type: coding
