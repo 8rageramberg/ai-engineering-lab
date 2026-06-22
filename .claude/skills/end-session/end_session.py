@@ -190,6 +190,80 @@ def append_event(record):
     with WORKLOG_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")
 
+
+CORE_EVENT_FIELDS = {
+    "id", "created_at", "event_type", "source", "feature_area", "task_id", "commit_sha",
+    "model_provider", "model_name", "input_tokens", "output_tokens", "total_tokens",
+    "estimated_cost_usd", "latency_ms", "success",
+}
+
+
+def to_event_row(record):
+    """Convert worklog record to database row format (same as post-commit hook)."""
+    extra = {k: v for k, v in record.items() if k not in CORE_EVENT_FIELDS}
+    metadata = {**extra.pop("metadata", {}), **extra}
+    row = {field: record.get(field) for field in CORE_EVENT_FIELDS}
+    if row.get("success") is None:
+        row["success"] = True
+    row["metadata"] = metadata
+    return row
+
+
+INSERT_EVENT_SQL = r"""
+\getenv event_row_json EVENT_ROW_JSON
+INSERT INTO events (
+    id, created_at, event_type, source, feature_area, task_id, commit_sha,
+    model_provider, model_name, input_tokens, output_tokens, total_tokens,
+    estimated_cost_usd, latency_ms, success, metadata
+)
+SELECT
+    (r->>'id')::uuid,
+    (r->>'created_at')::timestamptz,
+    r->>'event_type',
+    r->>'source',
+    r->>'feature_area',
+    NULLIF(r->>'task_id', '')::uuid,
+    r->>'commit_sha',
+    r->>'model_provider',
+    r->>'model_name',
+    COALESCE((r->>'input_tokens')::int, 0),
+    COALESCE((r->>'output_tokens')::int, 0),
+    COALESCE((r->>'total_tokens')::int, 0),
+    COALESCE((r->>'estimated_cost_usd')::numeric, 0),
+    NULLIF(r->>'latency_ms', '')::int,
+    COALESCE((r->>'success')::boolean, true),
+    COALESCE(r->'metadata', '{}'::jsonb)
+FROM (SELECT :'event_row_json'::jsonb AS r) t
+ON CONFLICT (id) DO NOTHING;
+"""
+
+
+def insert_event_row(record):
+    """Best-effort dual-write to the live events table (same as post-commit hook).
+
+    Any failure here is purely a stderr warning, never a reason to fail the skill.
+    The jsonl write is the durable system of record regardless.
+    """
+    payload = json.dumps(to_event_row(record))
+    try:
+        result = subprocess.run(
+            [
+                "docker", "compose", "exec", "-T", "-e", f"EVENT_ROW_JSON={payload}",
+                "postgres", "psql", "-U", "portfolio", "-d", "portfolio", "-v", "ON_ERROR_STOP=1",
+            ],
+            input=INSERT_EVENT_SQL,
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            timeout=15,
+        )
+    except Exception as exc:
+        print(f"end-session: could not reach the live events table, dashboard won't see this session yet ({exc})", file=sys.stderr)
+        return
+    if result.returncode != 0:
+        detail = result.stderr.strip().splitlines()[-1] if result.stderr.strip() else "unknown error"
+        print(f"end-session: live events table insert failed, dashboard won't see this session yet ({detail})", file=sys.stderr)
+
 def main():
     prompt_count, message_count, window_started_at = read_counter()
 
@@ -234,13 +308,16 @@ def main():
 
     try:
         append_event(record)
-        reset_counter()
+        insert_event_row(record)
         print(f"\n✓ Session logged: {session_type} ({prompt_count} prompts, {message_count} messages)")
         print(f"  Tokens: {total_tokens} | Cost: ${estimated_cost_usd:.2f}")
         print(f"  Duration: {(parse_iso(record['created_at']) - parse_iso(actual_window_started_at)).total_seconds() / 3600:.1f} hours")
     except Exception as e:
         print(f"Error logging session: {e}")
-        sys.exit(1)
+    finally:
+        # ALWAYS reset the counter, even if something failed. This prevents duplicate logging
+        # when the next commit hook or skill runs — the counter must be zero after a skill fires.
+        reset_counter()
 
 if __name__ == "__main__":
     main()
