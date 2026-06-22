@@ -14,6 +14,7 @@ import json
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from typing import Optional
 
 from app.config import OPENAI_API_KEY
 
@@ -31,7 +32,7 @@ class AIResponse:
     output_tokens: int
 
 
-def complete(prompt: str, *, system: str | None = None, max_output_tokens: int = 200) -> AIResponse:
+def complete(prompt: str, *, system: Optional[str] = None, max_output_tokens: int = 200) -> AIResponse:
     """Single completion call, routed exclusively through gpt-4o-mini.
 
     `system` carries the scoping/system prompt, kept as a separate argument so

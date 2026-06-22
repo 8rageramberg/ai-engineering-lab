@@ -24,7 +24,9 @@ One-time, per-clone: point git at the repo's versioned hooks so commits are logg
 git config core.hooksPath scripts/git-hooks
 ```
 
-## Commit-driven telemetry
+## Git hooks (versioned in scripts/git-hooks)
+
+### Commit-driven telemetry (post-commit)
 Every commit on a clone with `core.hooksPath` set as above runs
 [scripts/git-hooks/post-commit](scripts/git-hooks/post-commit), which logs one
 `coding_session_logged` row (source `git_hook`) automatically — deriving `commit_sha`,
@@ -35,6 +37,16 @@ durable, human-auditable system of record) and inserting it directly into the li
 manual reseed). It never blocks or fails a commit; on any error in either path it degrades to
 nulls/a stderr warning rather than a non-zero exit. `scripts/log_ai_session.py` remains available as
 a manual fallback for meaningful sessions that don't end in a commit.
+
+### Pre-push validation (pre-push)
+Every `git push` on a clone with `core.hooksPath` set above runs
+[scripts/git-hooks/pre-push](scripts/git-hooks/pre-push), which validates the codebase before
+anything reaches the remote:
+- Runs backend tests: `cd backend && python -m pytest tests/`
+- Runs frontend build check: `cd frontend && npm run build`
+
+If either fails, the push is blocked with a clear error message. This keeps local commits fast
+and reversible (no hook blocking them) while ensuring only validated code reaches main.
 
 ## Repo map (current)
 - `AGENTS.md` — this file, generic agent onboarding

@@ -14,6 +14,7 @@ without Docker access, e.g. a future non-compose deployment.
 
 import re
 from datetime import datetime, timezone
+from typing import Optional
 
 import docker
 from docker.errors import DockerException
@@ -37,7 +38,7 @@ def _get_client():
     return _client
 
 
-def _uptime_seconds(started_at: str | None) -> float | None:
+def _uptime_seconds(started_at: Optional[str]) -> Optional[float]:
     if not started_at:
         return None
     # Docker reports nanosecond precision ("...123456789Z"); fromisoformat wants <= 6 fractional digits.
@@ -49,7 +50,7 @@ def _uptime_seconds(started_at: str | None) -> float | None:
     return round((datetime.now(timezone.utc) - started).total_seconds(), 1)
 
 
-def _cpu_percent(stats: dict) -> float | None:
+def _cpu_percent(stats: dict) -> Optional[float]:
     try:
         cpu_usage = stats["cpu_stats"]["cpu_usage"]["total_usage"]
         precpu_usage = stats["precpu_stats"]["cpu_usage"]["total_usage"]
@@ -69,7 +70,7 @@ def _cpu_percent(stats: dict) -> float | None:
     return round((cpu_delta / system_delta) * online_cpus * 100, 1)
 
 
-def _memory(stats: dict) -> tuple[int | None, int | None, float | None]:
+def _memory(stats: dict) -> tuple[Optional[int], Optional[int], Optional[float]]:
     try:
         usage = stats["memory_stats"]["usage"]
         limit = stats["memory_stats"]["limit"]
@@ -85,7 +86,7 @@ def _memory(stats: dict) -> tuple[int | None, int | None, float | None]:
     return used, limit, round(used / limit * 100, 1)
 
 
-def get_container_info(compose_service: str) -> dict | None:
+def get_container_info(compose_service: str) -> Optional[dict]:
     client = _get_client()
     if client is None:
         return None

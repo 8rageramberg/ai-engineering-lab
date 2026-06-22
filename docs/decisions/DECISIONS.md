@@ -20,6 +20,32 @@ Add new entries at the top, newest first.
 
 ## Entries
 
+### 2026-06-22 — Add pre-push validation hook to block broken code from reaching main
+- decision: Add a `pre-push` git hook (`scripts/git-hooks/pre-push`) that runs on every `git push`
+  and blocks the push if either backend tests or frontend build fail. Backend tests are run via
+  `python -m pytest tests/` and frontend build via `npm run build` (both must pass to allow the
+  push). Minimal but real tests exist in `backend/tests/` (health check, telemetry endpoint, system
+  status reachability).
+- why: Commits are fast and local (the post-commit telemetry hook never blocks them), allowing for
+  small, frequent, reversible work. But we want only validated, non-broken code reaching main.
+  The pre-push hook enforces that boundary — it's the last gate before anything hits the remote.
+  This is a lightweight alternative to pre-commit validation (which would slow down every commit,
+  and we value iteration speed locally) and a pragmatic middle ground between "push broken code
+  constantly" and "exhaustive CI on every commit."
+- alternatives considered:
+  - Pre-commit hook validation — rejected; tests run on every commit would slow down the tight
+    iteration loop, and the main branch is still small enough that a pre-push check is sufficient.
+  - No validation at all — rejected; the goal is a portfolio piece that demonstrates quality;
+    broken code reaching main undermines that.
+  - Comprehensive CI (GitHub Actions, etc.) — viable for later, but not needed yet; for a local-
+    first MVP and single developer, a local hook is faster to iterate on and simpler to maintain.
+- impact: Adds `scripts/git-hooks/pre-push` (executable), `backend/tests/` directory with minimal
+  test suite (`test_api.py` covering health, telemetry summary, system status endpoints), and
+  updates `backend/requirements.txt` to include `pytest` and `httpx`. Updates `AGENTS.md` to
+  document the hook alongside the post-commit hook. No schema or telemetry changes — this is a
+  local developer experience improvement, not a system change.
+- feature_area: infra
+
 ### 2026-06-19 — Add end-session skill to log planning/architecture work without commits
 - decision: Create a new skill (`.claude/skills/end-session/`) that logs non-commit sessions
   (planning, architecture, debugging, writing, review) to telemetry. The skill reads the

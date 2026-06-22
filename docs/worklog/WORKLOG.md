@@ -42,6 +42,25 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-22 — Add pre-push validation hook for backend tests and frontend builds
+- agent: claude-code
+- session_type: architecture
+- feature_area: infra
+- task_id: none
+- summary: Built a `pre-push` git hook that validates the codebase before any code reaches the
+  remote. Backend tests (pytest) and frontend build (npm run build) must both pass or the push is
+  blocked. Includes minimal but real test suite (health check, system status). Verified hook works
+  by deliberately breaking a test, confirming push blocked, fixing it, confirming push proceeds.
+  Also fixed Python 3.9 type-hint incompatibilities in backend code (old-style `Optional[T]`
+  syntax instead of `T | None`).
+- changed_files: `scripts/git-hooks/pre-push`, `backend/tests/conftest.py`, `backend/tests/test_api.py`,
+  `backend/requirements.txt`, `backend/app/ai/client.py`, `backend/app/system_status/docker_stats.py`,
+  `AGENTS.md`, `docs/decisions/DECISIONS.md`
+- tests: manual — deliberately broke a backend test, confirmed pre-push hook blocked the push with
+  clear error message; fixed the test, confirmed hook allowed the push to proceed
+- tokens/cost: not logged
+- telemetry notes: no schema changes; this is a local-only developer experience improvement
+
 ### 2026-06-19 — Add end-session skill for non-commit session logging
 - agent: claude-code
 - session_type: architecture
