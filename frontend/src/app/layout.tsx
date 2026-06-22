@@ -47,6 +47,12 @@ export default function RootLayout({
               >
                 Demo agent
               </a>
+              <a
+                href="/telemetry-audit"
+                className="text-sm font-medium text-text-secondary transition-colors hover:text-accent-primary"
+              >
+                Audit log
+              </a>
             </div>
           </nav>
         </header>
