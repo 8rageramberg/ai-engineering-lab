@@ -16,7 +16,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 COUNTER_PATH = REPO_ROOT / ".ai" / "session_counter.json"
 WORKLOG_PATH = REPO_ROOT / "docs" / "worklog" / "ai_sessions.jsonl"
 TRANSCRIPT_DIR = Path.home() / ".claude" / "projects" / str(REPO_ROOT.resolve()).replace("/", "-")
