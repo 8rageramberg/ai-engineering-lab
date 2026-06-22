@@ -149,12 +149,19 @@ def enrich_from_transcripts(repo_root, window_started_at):
     This makes the telemetry self-healing: window_started_at is grounded in reality (actual
     session messages), not in stale counter state.
 
+    If window_started_at is null (because a skill just reset the counter), falls back to
+    the last 2 hours so commits made immediately after a skill still get enriched.
+
     Wrapped end-to-end: any failure (missing dir, unfamiliar schema, bad timestamps) degrades
     to nulls rather than blocking the commit. Treated purely as enrichment, never a dependency.
     """
+    from datetime import timedelta
     nulls = (None, None, None, None, None, None, None)
+
+    # If counter was just reset by a skill, use 2-hour fallback window to catch any
+    # interaction before the skill ran.
     if not window_started_at:
-        return nulls
+        window_started_at = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
     try:
         window_start = parse_iso(window_started_at)
     except ValueError:
