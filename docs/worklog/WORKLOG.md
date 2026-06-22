@@ -42,6 +42,17 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-22 — Fix telemetry: eliminate cache_read misattribution and use git timestamps for session windows
+- agent: claude-code
+- session_type: debugging
+- feature_area: observability
+- task_id: none
+- summary: Fixed critical telemetry overcounting. Cache_read_tokens were being misattributed to current sessions when they represent previously-cached prompts (5-10x inflation). Now log only input+output+cache_write tokens (actual work). Also fixed window_started_at derivation: stopped using "earliest transcript in fallback window" (which spanned hours), now use previous commit timestamp for clean git-based session boundaries. This aligns our telemetry to match Claude Code extension's accounting.
+- changed_files: scripts/git-hooks/post-commit, .claude/skills/end-session/end_session.py
+- tests: Verified token counts for 6/7-6/19 now match extension within 4%. Pre-push hook tests pass.
+- tokens/cost: ~1M tokens/$40 (cumulative fixes across session)
+- telemetry notes: Cleaned inflated 6/22 sessions from database (were using old logic). Future sessions will use correct boundaries.
+
 ### 2026-06-22 — Add pre-push validation hook for backend tests and frontend builds
 - agent: claude-code
 - session_type: architecture
