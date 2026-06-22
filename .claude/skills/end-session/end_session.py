@@ -177,7 +177,7 @@ def reset_counter():
             json.dumps({
                 "prompt_count": 0,
                 "message_count": 0,
-                "window_started_at": datetime.now(timezone.utc).isoformat(),
+                "window_started_at": None,
             }),
             encoding="utf-8",
         )
@@ -199,9 +199,13 @@ def main():
 
     session_type = prompt_session_type()
 
-    actual_window_started_at = find_earliest_transcript_timestamp(window_started_at)
+    # Always derive window_started_at fresh from transcripts, ignoring the counter's potentially
+    # stale value. Use 24 hours ago as the fallback search window.
+    from datetime import timedelta
+    fallback_window = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    actual_window_started_at = find_earliest_transcript_timestamp(fallback_window)
     if not actual_window_started_at:
-        actual_window_started_at = window_started_at
+        actual_window_started_at = fallback_window
 
     input_tokens, output_tokens, total_tokens, cache_read_tokens, estimated_cost_usd, model_name = enrich_from_transcripts(actual_window_started_at)
 
