@@ -151,10 +151,18 @@ def enrich_from_transcripts(repo_root, window_started_at):
 
     Wrapped end-to-end: any failure (missing dir, unfamiliar schema, bad timestamps) degrades
     to nulls rather than blocking the commit. Treated purely as enrichment, never a dependency.
+
+    If window_started_at is null (because a skill just reset the counter), falls back to
+    the last 30 minutes so commits made immediately after a skill still get enriched without
+    retroactively capturing stale cached context from hours earlier.
     """
+    from datetime import timedelta
     nulls = (None, None, None, None, None, None, None)
+
+    # If counter was just reset by a skill, use 30-minute fallback window to catch recent
+    # interaction without retroactively capturing stale cached context from hours earlier.
     if not window_started_at:
-        return nulls
+        window_started_at = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
     try:
         window_start = parse_iso(window_started_at)
     except ValueError:

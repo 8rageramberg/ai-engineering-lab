@@ -274,9 +274,10 @@ def main():
     session_type = prompt_session_type()
 
     # Always derive window_started_at fresh from transcripts, ignoring the counter's potentially
-    # stale value. Use 24 hours ago as the fallback search window.
+    # stale value. Use 30 minutes as the fallback search window to avoid retroactively capturing
+    # stale cached context from hours earlier.
     from datetime import timedelta
-    fallback_window = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    fallback_window = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
     actual_window_started_at = find_earliest_transcript_timestamp(fallback_window)
     if not actual_window_started_at:
         actual_window_started_at = fallback_window
