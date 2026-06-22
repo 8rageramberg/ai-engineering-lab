@@ -229,7 +229,9 @@ def enrich_from_transcripts(repo_root, window_started_at):
                     input_tokens += usage.get("input_tokens", 0)
                     output_tokens += usage.get("output_tokens", 0)
                     cache_creation_tokens += usage.get("cache_creation_input_tokens", 0)
-                    cache_read_tokens += usage.get("cache_read_input_tokens", 0)
+                    # Skip cache_read_tokens: they represent previously-cached prompts from earlier
+                    # sessions, not work done in this session. Including them inflates our token
+                    # counts by 5-10x and misattributes cache value to the wrong session.
 
                     model_name = message.get("model")
                     if model_name:
