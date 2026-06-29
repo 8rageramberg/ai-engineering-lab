@@ -17,7 +17,21 @@ echo -e "${YELLOW}Running pre-push validation...${NC}"
 # Run backend tests
 echo -e "${YELLOW}Running backend tests...${NC}"
 cd "$REPO_ROOT/backend"
-if ! "${CONDA_PYTHON:-$(command -v python3)}" -m pytest tests/ -v; then
+PYTHON=$(
+  for candidate in \
+    "$CONDA_PYTHON" \
+    "$HOME/opt/miniconda3/bin/python3" \
+    "$HOME/miniconda3/bin/python3" \
+    "$HOME/anaconda3/bin/python3" \
+    "$(command -v python3)"; do
+    [ -x "$candidate" ] && "$candidate" -c "import pytest" 2>/dev/null && echo "$candidate" && break
+  done
+)
+if [ -z "$PYTHON" ]; then
+    echo -e "${RED}❌ Could not find a Python with pytest installed. Push blocked.${NC}"
+    exit 1
+fi
+if ! "$PYTHON" -m pytest tests/ -v; then
     echo -e "${RED}❌ Backend tests failed. Push blocked.${NC}"
     exit 1
 fi
