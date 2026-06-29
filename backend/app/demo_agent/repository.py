@@ -72,9 +72,9 @@ def _get_recent_sessions() -> list[dict]:
             "date": day.isoformat(),
             "commit_sha": commit_sha,
             "summary": summary,
-            "total_tokens": int(total_tokens),
-            "estimated_cost_usd": float(estimated_cost_usd),
-            "prompt_count": int(prompt_count),
+            "total_tokens": int(total_tokens) if total_tokens is not None else 0,
+            "estimated_cost_usd": float(estimated_cost_usd) if estimated_cost_usd is not None else 0.0,
+            "prompt_count": int(prompt_count) if prompt_count is not None else 0,
         }
         for day, commit_sha, summary, total_tokens, estimated_cost_usd, prompt_count in rows
     ]
