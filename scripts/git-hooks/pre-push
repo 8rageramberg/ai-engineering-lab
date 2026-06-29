@@ -17,7 +17,7 @@ echo -e "${YELLOW}Running pre-push validation...${NC}"
 # Run backend tests
 echo -e "${YELLOW}Running backend tests...${NC}"
 cd "$REPO_ROOT/backend"
-if ! python -m pytest tests/ -v; then
+if ! python3 -m pytest tests/ -v; then
     echo -e "${RED}❌ Backend tests failed. Push blocked.${NC}"
     exit 1
 fi
