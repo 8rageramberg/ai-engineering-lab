@@ -391,19 +391,37 @@ def main():
 
     # For git_hook sessions, use the PREVIOUS commit's timestamp as window_started_at
     # to avoid retroactively capturing old work. This defines a clean session boundary.
+    #
+    # MAX_SESSION_HOURS cap: if the gap since the last commit exceeds this threshold (e.g.,
+    # a multi-day pause, a setup weekend, or a long break), the previous commit timestamp is
+    # too stale to use as a session window start. Without this cap, a 7-day gap produces a
+    # 167h session that sweeps up the entire transcript history and inflates the dashboard.
+    # When the gap is too large we clamp to 30 minutes before the current commit, which
+    # reliably captures only the real work that went into this specific commit.
+    MAX_SESSION_HOURS = 4
+    from datetime import timedelta
     try:
         prev_commit = git(repo_root, "rev-parse", "HEAD~1").strip()
         prev_timestamp = git(repo_root, "show", "-s", "--format=%cI", prev_commit).strip()
+        prev_time = parse_iso(prev_timestamp)
+        commit_time = parse_iso(commit_timestamp)
+        gap_hours = (commit_time - prev_time).total_seconds() / 3600
+        if gap_hours > MAX_SESSION_HOURS:
+            warn(
+                f"prev commit was {gap_hours:.1f}h ago (>{MAX_SESSION_HOURS}h cap) — "
+                f"clamping window to 30 min before this commit to avoid sweeping stale transcripts"
+            )
+            prev_timestamp = (commit_time - timedelta(minutes=30)).isoformat()
     except Exception:
         # First commit or error — use current commit time
         prev_timestamp = commit_timestamp
 
-    # Enrich from transcripts using the previous commit time as the window start
+    # Enrich from transcripts using the (capped) previous commit time as the window start
     input_tokens, output_tokens, total_tokens, cache_read_tokens, estimated_cost_usd, model_name, _ = enrich_from_transcripts(
         repo_root, prev_timestamp
     )
 
-    # Use the previous commit timestamp as our session window start
+    # Use the (capped) previous commit timestamp as our session window start
     # (marks when the PREVIOUS session ended, this session begins)
     final_window_started_at = prev_timestamp
 

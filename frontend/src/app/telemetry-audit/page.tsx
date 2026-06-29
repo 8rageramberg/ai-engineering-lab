@@ -84,6 +84,22 @@ export default function TelemetryAudit() {
                   Applied: 2026-06-22 19:54 (commit 94e1387)
                 </p>
               </div>
+
+              <div className="border-t border-text-secondary/10 pt-6">
+                <h3 className="font-semibold text-text-primary">Fix 4: Session Window Length Cap (4h max)</h3>
+                <p className="mt-2 text-sm text-text-secondary">
+                  The git-based window approach (Fix 2) has a hidden edge case: when there is a multi-day gap between commits, the previous commit timestamp is too stale to be a valid session boundary. A 7-day gap between commits produced a 167-hour session that swept up the entire transcript history, inflating the hours figure to ~178h when the real total was ~11h.
+                </p>
+                <p className="mt-2 text-xs text-text-secondary">
+                  <strong>Example:</strong> June 22nd was the last commit before the Neon/Vercel/Render setup session on June 29th. No commits landed during the setup days, so the hook saw a 7-day gap and used June 22nd as the window start.
+                </p>
+                <p className="mt-2 text-sm text-text-secondary">
+                  The hook now enforces a 4-hour cap: if the previous commit is more than 4 hours before the current one, the window clamps to 30 minutes before the current commit. The bad row (id: f1cf1dfb) was deleted from both the jsonl and Neon.
+                </p>
+                <p className="mt-3 inline-block rounded bg-accent-primary/10 px-3 py-1 text-xs text-accent-primary">
+                  Applied: 2026-06-29 (commit pending)
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -163,9 +179,16 @@ export default function TelemetryAudit() {
               </div>
 
               <div className="rounded-lg bg-accent-primary/5 border border-accent-primary/20 p-4">
-                <p className="font-semibold text-text-primary">From 2026-06-22 20:06 onward</p>
+                <p className="font-semibold text-text-primary">2026-06-22 20:06 – 2026-06-29</p>
                 <p className="mt-1 text-xs text-text-secondary">
-                  Full fixes applied. Cache-read excluded, git-based windows. Safe for all use. Validated within 4% of Claude Code extension.
+                  Cache-read excluded and git-based windows applied. One bad row (167h) from a 7-day commit gap was manually deleted from both jsonl and database on 2026-06-29.
+                </p>
+              </div>
+
+              <div className="rounded-lg bg-accent-primary/5 border border-accent-primary/20 p-4">
+                <p className="font-semibold text-text-primary">From 2026-06-29 onward</p>
+                <p className="mt-1 text-xs text-text-secondary">
+                  All fixes applied including the 4-hour session window cap. Safe for all use. Hours figure validated at ~11h which matches expected total.
                 </p>
               </div>
             </div>
@@ -174,7 +197,7 @@ export default function TelemetryAudit() {
 
         <div className="mt-12 rounded-xl border border-text-secondary/15 bg-surface p-6 shadow-sm">
           <p className="text-sm text-text-secondary">
-            <strong>Last updated:</strong> 2026-06-22 20:06 UTC
+            <strong>Last updated:</strong> 2026-06-29 UTC
           </p>
           <p className="mt-2 text-sm text-text-secondary">
             For detailed engineering notes, see <code className="rounded bg-background px-2 py-1 text-xs text-text-primary font-mono">docs/worklog/WORKLOG.md</code>
