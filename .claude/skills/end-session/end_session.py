@@ -243,7 +243,7 @@ ON CONFLICT (id) DO NOTHING;
 
 def get_neon_url():
     """Read NEON_DATABASE_URL from backend/.env."""
-    env_path = REPO_ROOT / "backend" / ".env"
+    env_path = REPO_ROOT / ".env"
     try:
         for line in env_path.read_text(encoding="utf-8").splitlines():
             if line.startswith("NEON_DATABASE_URL="):

@@ -322,7 +322,7 @@ def to_event_row(record):
 
 def get_neon_url(repo_root):
     """Read NEON_DATABASE_URL from backend/.env — the prod database all commits should land in."""
-    env_path = repo_root / "backend" / ".env"
+    env_path = repo_root / ".env"
     try:
         for line in env_path.read_text(encoding="utf-8").splitlines():
             if line.startswith("NEON_DATABASE_URL="):
