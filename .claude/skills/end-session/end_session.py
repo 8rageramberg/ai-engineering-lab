@@ -10,6 +10,7 @@ Usage: python3 end_session.py
 """
 
 import json
+import os
 import subprocess
 import sys
 import uuid
@@ -240,31 +241,46 @@ ON CONFLICT (id) DO NOTHING;
 """
 
 
+def get_neon_url():
+    """Read NEON_DATABASE_URL from backend/.env."""
+    env_path = REPO_ROOT / "backend" / ".env"
+    try:
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("NEON_DATABASE_URL="):
+                return line.split("=", 1)[1].strip()
+    except Exception:
+        pass
+    return None
+
+
 def insert_event_row(record):
-    """Best-effort dual-write to the live events table (same as post-commit hook).
+    """Best-effort dual-write to Neon prod events table via psql.
 
     Any failure here is purely a stderr warning, never a reason to fail the skill.
     The jsonl write is the durable system of record regardless.
     """
+    neon_url = get_neon_url()
+    if not neon_url:
+        print("end-session: NEON_DATABASE_URL not found in backend/.env, skipping live insert", file=sys.stderr)
+        return
+
     payload = json.dumps(to_event_row(record))
+    env = {**os.environ, "EVENT_ROW_JSON": payload}
     try:
         result = subprocess.run(
-            [
-                "docker", "compose", "exec", "-T", "-e", f"EVENT_ROW_JSON={payload}",
-                "postgres", "psql", "-U", "portfolio", "-d", "portfolio", "-v", "ON_ERROR_STOP=1",
-            ],
+            ["psql", neon_url, "-v", "ON_ERROR_STOP=1"],
             input=INSERT_EVENT_SQL,
             capture_output=True,
             text=True,
-            cwd=REPO_ROOT,
+            env=env,
             timeout=15,
         )
     except Exception as exc:
-        print(f"end-session: could not reach the live events table, dashboard won't see this session yet ({exc})", file=sys.stderr)
+        print(f"end-session: could not reach Neon ({exc})", file=sys.stderr)
         return
     if result.returncode != 0:
         detail = result.stderr.strip().splitlines()[-1] if result.stderr.strip() else "unknown error"
-        print(f"end-session: live events table insert failed, dashboard won't see this session yet ({detail})", file=sys.stderr)
+        print(f"end-session: Neon insert failed ({detail})", file=sys.stderr)
 
 def main():
     prompt_count, message_count, window_started_at = read_counter()

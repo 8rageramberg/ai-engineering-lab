@@ -320,36 +320,50 @@ def to_event_row(record):
     return row
 
 
-def insert_event_row(repo_root, record):
-    """Best-effort dual-write of the same row straight into the live `events` table.
+def get_neon_url(repo_root):
+    """Read NEON_DATABASE_URL from backend/.env — the prod database all commits should land in."""
+    env_path = repo_root / "backend" / ".env"
+    try:
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("NEON_DATABASE_URL="):
+                return line.split("=", 1)[1].strip()
+    except Exception:
+        pass
+    return None
 
-    Routed through `docker compose exec` into the postgres container rather than connecting
-    from the host directly: this machine also runs a native Postgres bound to 127.0.0.1:5432,
-    which silently shadows the compose service's published port, and going through the
-    container's own network namespace needs no extra Postgres driver on the host either.
-    The jsonl write above is the durable system of record regardless of whether this succeeds
-    -- any failure here (compose not running, daemon unreachable, etc.) is purely a stderr
-    warning, never a reason to fail or block the commit.
+
+def insert_event_row(repo_root, record):
+    """Best-effort dual-write of the same row straight into the Neon prod events table.
+
+    Uses psql directly with NEON_DATABASE_URL from backend/.env — connects to the same
+    Neon database that Render's backend reads from, so every commit shows up on the live
+    dashboard immediately without a manual reseed.
+
+    The jsonl write above is the durable system of record regardless of whether this
+    succeeds — any failure here is purely a stderr warning, never a reason to fail the commit.
     """
+    neon_url = get_neon_url(repo_root)
+    if not neon_url:
+        warn("NEON_DATABASE_URL not found in backend/.env, skipping live table insert")
+        return
+
     payload = json.dumps(to_event_row(record))
+    env = {**os.environ, "EVENT_ROW_JSON": payload}
     try:
         result = subprocess.run(
-            [
-                "docker", "compose", "exec", "-T", "-e", f"EVENT_ROW_JSON={payload}",
-                "postgres", "psql", "-U", "portfolio", "-d", "portfolio", "-v", "ON_ERROR_STOP=1",
-            ],
+            ["psql", neon_url, "-v", "ON_ERROR_STOP=1"],
             input=INSERT_EVENT_SQL,
             capture_output=True,
             text=True,
-            cwd=repo_root,
+            env=env,
             timeout=15,
         )
     except Exception as exc:
-        warn(f"could not reach the live events table, dashboard won't see this commit yet ({exc})")
+        warn(f"could not reach Neon, dashboard won't see this commit yet ({exc})")
         return
     if result.returncode != 0:
         detail = result.stderr.strip().splitlines()[-1] if result.stderr.strip() else "unknown error"
-        warn(f"live events table insert failed, dashboard won't see this commit yet ({detail})")
+        warn(f"Neon insert failed, dashboard won't see this commit yet ({detail})")
 
 
 def main():
