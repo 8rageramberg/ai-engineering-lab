@@ -2,6 +2,11 @@ import { getTelemetrySummary, getDailyActivity } from "@/lib/api";
 import { SystemStatus } from "./SystemStatus";
 import { ActivityCalendar } from "./ActivityCalendar";
 
+// Grep of all frontend/src/app/**/*.tsx files for "—" excluding loading-state
+// placeholders (return "—", value: "—") and code/comment lines.
+// Update when copy changes: grep -rn "—" src/app --include="*.tsx" | grep -v 'return "—"' | grep -v ': "—"' | grep -v "//\|/\*\|match\|title={"
+const SITE_EM_DASH_COUNT = 36;
+
 const numberFormatter = new Intl.NumberFormat("en-US");
 const costFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -59,7 +64,7 @@ export default async function Dashboard() {
 
         {summary ? (
           <>
-            <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="rounded-xl border border-text-secondary/15 bg-surface p-8 shadow-sm">
                 <p className="text-sm font-medium text-text-secondary">
                   Prompts sent to build this
@@ -90,6 +95,19 @@ export default async function Dashboard() {
                   h is a one-time hand-estimate covering day-one sessions logged before
                   that measurement existed. The estimate&apos;s share shrinks on its own as
                   more precisely-tracked hours stack on top of it.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-text-secondary/15 bg-surface p-8 shadow-sm">
+                <p className="text-sm font-medium text-text-secondary">
+                  Em dashes in this site&apos;s copy
+                </p>
+                <p className="mt-2 text-5xl font-semibold tracking-tight text-accent-primary">
+                  {SITE_EM_DASH_COUNT}
+                </p>
+                <p className="mt-2 text-xs text-text-secondary">
+                  a known AI writing tell — counted across all pages from the source
+                  files, not from the live DOM
                 </p>
               </div>
             </div>
