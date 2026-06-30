@@ -1,4 +1,4 @@
-import { getTelemetrySummary, getDailyActivity, getDeploys, type DeployEvent } from "@/lib/api";
+import { getTelemetrySummary, getDailyActivity } from "@/lib/api";
 import { SystemStatus } from "./SystemStatus";
 import { ActivityCalendar } from "./ActivityCalendar";
 
@@ -15,10 +15,9 @@ const hoursFormatter = new Intl.NumberFormat("en-US", {
 });
 
 export default async function Dashboard() {
-  const [summary, dailyActivity, deploys] = await Promise.all([
+  const [summary, dailyActivity] = await Promise.all([
     getTelemetrySummary().catch(() => null),
     getDailyActivity().catch(() => []),
-    getDeploys().catch(() => null),
   ]);
 
   const supportingStats = summary
@@ -119,90 +118,9 @@ export default async function Dashboard() {
           </div>
         )}
 
-        <RecentDeploys deploys={deploys} />
         <SystemStatus />
       </div>
     </div>
   );
 }
 
-function RecentDeploys({ deploys }: { deploys: Awaited<ReturnType<typeof getDeploys>> | null }) {
-  return (
-    <section className="mt-16">
-      <p className="text-sm font-medium uppercase tracking-widest text-accent-primary">
-        Deploy history
-      </p>
-      <h2 className="mt-2 text-2xl font-semibold tracking-tight text-text-primary">
-        What shipped, and when.
-      </h2>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-text-secondary">
-        Every successful GitHub Actions run emits a{" "}
-        <code className="rounded bg-surface px-1 py-0.5 text-xs text-text-primary font-mono">
-          commit_pushed
-        </code>{" "}
-        event to the same{" "}
-        <code className="rounded bg-surface px-1 py-0.5 text-xs text-text-primary font-mono">
-          events
-        </code>{" "}
-        table. These rows appear here the moment CI finishes.
-      </p>
-
-      {deploys && deploys.total_deploys > 0 ? (
-        <>
-          {/* Frequency stats */}
-          <div className="mt-6 grid grid-cols-3 gap-4">
-            {[
-              { label: "Total deploys", value: deploys.total_deploys },
-              { label: "Last 7 days", value: deploys.deploys_last_7_days },
-              { label: "Last 24 hours", value: deploys.deploys_last_24h },
-            ].map((s) => (
-              <div
-                key={s.label}
-                className="rounded-xl border border-text-secondary/15 bg-surface p-5 shadow-sm"
-              >
-                <p className="text-xs text-text-secondary">{s.label}</p>
-                <p className="mt-1 text-3xl font-semibold tracking-tight text-accent-primary">
-                  {s.value}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* Recent deploy list */}
-          <div className="mt-4 rounded-xl border border-text-secondary/15 bg-surface shadow-sm">
-            <ul className="divide-y divide-text-secondary/10">
-              {deploys.recent.map((d: DeployEvent) => (
-                <li key={d.id} className="flex items-start gap-4 px-5 py-4">
-                  <code className="mt-0.5 shrink-0 rounded bg-background px-1.5 py-0.5 text-xs font-mono text-text-secondary">
-                    {d.commit_sha ?? "—"}
-                  </code>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-text-primary">
-                      {d.commit_message ?? "no message"}
-                    </p>
-                    <p className="mt-0.5 text-xs text-text-secondary">
-                      {d.branch ?? "main"}{d.actor ? ` · ${d.actor}` : ""}
-                      {" · "}
-                      {new Date(d.created_at).toLocaleString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </>
-      ) : (
-        <div className="mt-6 rounded-xl border border-dashed border-text-secondary/30 bg-surface p-8 text-center text-sm text-text-secondary">
-          {deploys === null
-            ? "Couldn't reach the deploys API — make sure the backend is running."
-            : "No deploys recorded yet. GitHub Actions will populate this after the first successful CI run."}
-        </div>
-      )}
-    </section>
-  );
-}
