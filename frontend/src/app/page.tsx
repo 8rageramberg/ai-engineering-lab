@@ -10,15 +10,20 @@ export default async function Home() {
           AI engineering portfolio
         </p>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl">
-          Built in the open, measured as it goes.
+          Built with AI agents, measured as it went.
         </h1>
         <p className="mt-6 text-lg leading-8 text-text-secondary">
-          This is an AI engineering portfolio that demonstrates clean telemetry, cost-aware
-          AI usage, and a small full-stack app — all assembled by coding agents while the
-          project records structured evidence of how the work actually happened: every
-          session, every token, every dollar.
+          Hi. I built this to figure out how fast you can move with coding agents and to have
+          something real to show for it. Starting from a blank repo: a FastAPI backend, a Next.js
+          frontend, a Neon Postgres database, git hooks that log every session as structured
+          telemetry, and a dashboard showing exactly what it cost in tokens and dollars.
         </p>
-        <div className="mt-10 flex items-center gap-4">
+        <p className="mt-4 text-base leading-7 text-text-secondary">
+          Zero to live-hosted in under 15 hours. Not every number is perfectly precise — there is
+          an audit log explaining where the gaps are — but the methodology is sound, the code is
+          real, and the site is running right now.
+        </p>
+        <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
           <a
             href="/dashboard"
             className="rounded-md bg-accent-secondary px-5 py-2.5 text-sm font-semibold text-background transition-colors hover:bg-accent-primary"
@@ -27,10 +32,10 @@ export default async function Home() {
           </a>
           <span className="flex items-center gap-2 text-sm text-text-secondary">
             <span
-              className={`h-2 w-2 rounded-full ${health ? "bg-accent-primary" : "bg-accent-alert"}`}
+              className={`h-2 w-2 rounded-full ${health ? "bg-accent-primary" : "bg-text-secondary/40"}`}
               aria-hidden
             />
-            backend {health ? "online" : "unreachable"}
+            backend {health ? "online" : "sleeping (Render free tier)"}
           </span>
         </div>
       </div>

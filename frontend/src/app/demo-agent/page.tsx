@@ -6,9 +6,9 @@ import { askAgent, AskAgentError, getDemoAgentStats, type DemoAgentStats } from 
 const MAX_QUESTION_LENGTH = 300;
 
 const EXAMPLE_QUESTIONS = [
-  "How many coding sessions have gone into this project?",
-  "Roughly how much has this cost in tokens so far?",
-  "What was the most recent thing built here?",
+  "How many hours went into building this?",
+  "Where is the backend hosted and why does it sometimes take a moment to respond?",
+  "What was the most expensive session so far?",
 ];
 
 const numberFormatter = new Intl.NumberFormat("en-US");
@@ -69,18 +69,17 @@ export default function DemoAgentPage() {
           Demo agent
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">
-          Ask a small, bounded question about this project&apos;s own telemetry.
+          Ask something about this project.
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-7 text-text-secondary">
-          This is the first live AI feature on the site. Type a short question about how this
-          project was built — sessions, commits, tokens, cost — and{" "}
+          This agent answers questions about how this project was built. It knows about the tech
+          stack, hosting setup, session counts, token costs, and deployment pipeline. Ask it
+          anything from "where is the backend hosted?" to "which session cost the most?" —{" "}
           <code className="rounded bg-surface px-1 py-0.5 text-sm text-text-primary">
             gpt-4o-mini
           </code>{" "}
-          answers it from the same{" "}
-          <code className="rounded bg-surface px-1 py-0.5 text-sm text-text-primary">events</code>{" "}
-          data the dashboard reads from. The call is real — it shows up in that dashboard&apos;s
-          totals moments later.
+          answers from a fixed snapshot of the project data. Every call is real and shows up in
+          the dashboard totals seconds later.
         </p>
 
         {stats && (
@@ -170,9 +169,9 @@ export default function DemoAgentPage() {
             </li>
             <li>
               <span className="font-medium text-text-primary">It can&apos;t go off-topic —</span> the
-              agent only ever sees one small, fixed snapshot of this project&apos;s telemetry — never
-              arbitrary queries, never a general chat surface — both in its instructions and in the
-              code path that feeds it data.
+              agent only sees two fixed, pre-shaped data blocks: a telemetry snapshot from the
+              database and a static infrastructure fact sheet. It cannot run arbitrary queries,
+              reach the internet, or discuss anything outside those two blocks.
             </li>
             <li>
               <span className="font-medium text-text-primary">Hard caps, not best-effort —</span>{" "}

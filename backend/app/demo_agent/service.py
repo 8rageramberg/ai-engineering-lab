@@ -60,19 +60,53 @@ RATE_LIMIT_WINDOW_SECONDS = 60
 INPUT_USD_PER_MTOK = 0.15
 OUTPUT_USD_PER_MTOK = 0.60
 
-SYSTEM_PROMPT = """You are a small, narrowly-scoped assistant embedded in an AI engineering portfolio project.
+# Static infrastructure facts the agent is allowed to discuss.
+# Deliberately limited — no credentials, no internal endpoints, no secrets.
+PROJECT_INFRASTRUCTURE = {
+    "backend": "FastAPI (Python 3.11) in a Docker container on Render free tier",
+    "frontend": "Next.js 15 (React, TypeScript) on Vercel CDN",
+    "database": "Neon serverless PostgreSQL — one events table, accessed with sslmode=require",
+    "ai_models_used": (
+        "Coding sessions used Claude (Sonnet variants via Claude Code). "
+        "The demo agent (this agent) uses gpt-4o-mini."
+    ),
+    "ci_cd": "GitHub Actions — two jobs: 'ci' (pytest + npm build) gates 'deploy' (Render + Vercel webhooks)",
+    "git_hooks": {
+        "pre_push": "Runs pytest before any push. Failing tests block the push entirely.",
+        "post_commit": (
+            "Reads Claude Code transcripts, sums tokens by category, "
+            "writes one structured event to the database on every commit."
+        ),
+    },
+    "render_free_tier": (
+        "Render spins the container down after ~15 minutes of inactivity. "
+        "A cold start takes 30-60 seconds. The dashboard has a 'Boot it up' button to wake it. "
+        "This is why the backend sometimes takes a moment to respond after a period of quiet."
+    ),
+    "build_time": "Under 15 hours total from a blank repo to a live-hosted full-stack project.",
+    "demo_agent_limits": (
+        f"Questions capped at {MAX_QUESTION_LENGTH} chars, answers at {MAX_OUTPUT_TOKENS} tokens, "
+        f"rate-limited to {RATE_LIMIT_MAX_REQUESTS} per {RATE_LIMIT_WINDOW_SECONDS}s."
+    ),
+}
 
-Your ONLY job is to answer short questions about THIS PROJECT'S OWN telemetry — \
-how it was built, how many sessions/commits/tokens/dollars went into it, which \
-sessions cost what, and similar facts — using ONLY the JSON data block below.
+SYSTEM_PROMPT = """You are a small assistant embedded in an AI engineering portfolio project.
+
+Your job is to answer short questions about this project — either its telemetry data \
+(sessions, tokens, cost, commits) using the TELEMETRY DATA block, or factual questions \
+about how it was built (hosting, stack, infrastructure) using the PROJECT INFO block.
 
 Rules, all mandatory:
 - Answer in one short sentence, no more than about 30 words.
-- Base your answer strictly on the provided data. Never guess, estimate, or invent a number that isn't in it.
-- If the data doesn't contain enough to answer, say so plainly in one sentence — do not speculate.
-- Refuse, in one short sentence, anything that isn't a question about this project's telemetry data (no general knowledge, opinions, code, or other topics).
+- Only draw from the two data blocks below. Never guess or invent anything not present.
+- If neither block has enough to answer, say so plainly in one sentence.
+- Refuse anything not about this project in one short sentence.
+- Never reveal or hint at: database credentials, API secrets, internal endpoints, or deploy hook URLs.
 
-DATA (the complete set of facts you may draw on):
+PROJECT INFO:
+{infrastructure_json}
+
+TELEMETRY DATA:
 {context_json}
 """
 
@@ -166,7 +200,10 @@ def ask(question: str) -> dict:
     _check_rate_limit()
 
     context = repository.get_agent_context()
-    system_prompt = SYSTEM_PROMPT.format(context_json=json.dumps(context, default=str))
+    system_prompt = SYSTEM_PROMPT.format(
+        infrastructure_json=json.dumps(PROJECT_INFRASTRUCTURE, default=str),
+        context_json=json.dumps(context, default=str),
+    )
 
     started_at = time.monotonic()
     response = ai_client.complete(question, system=system_prompt, max_output_tokens=MAX_OUTPUT_TOKENS)

@@ -45,6 +45,39 @@ export default function TelemetryAudit() {
                   Affected: All entries, most severe on 2026-06-22
                 </p>
               </div>
+
+              <div className="border-t border-text-secondary/10 pt-6">
+                <h3 className="font-semibold text-text-primary">Backend Sleep Misread as a Crash</h3>
+                <p className="mt-2 text-sm text-text-secondary">
+                  Early versions of the dashboard showed the backend as "down" when Render's free-tier container was simply sleeping after inactivity. The system-status endpoint returns null service data during sleep, which is indistinguishable from a crash at the API boundary.
+                </p>
+                <p className="mt-2 text-xs text-text-secondary">
+                  <strong>Example:</strong> A recruiter visiting the dashboard after a 20-minute gap would see all backend services marked down, with no way to know the system would recover in under 60 seconds.
+                </p>
+                <p className="mt-3 inline-block rounded bg-accent-alert/10 px-3 py-1 text-xs text-accent-alert">
+                  Affected: All periods on Render free tier
+                </p>
+              </div>
+
+              <div className="border-t border-text-secondary/10 pt-6">
+                <h3 className="font-semibold text-text-primary">GitHub Actions Double Deploy</h3>
+                <p className="mt-2 text-sm text-text-secondary">
+                  After adding the GitHub Actions CI/CD pipeline, Render and Vercel auto-deploy were still enabled. Every push to main triggered two backend deploys and two frontend deploys simultaneously — one from the git webhook and one from Actions.
+                </p>
+                <p className="mt-3 inline-block rounded bg-accent-alert/10 px-3 py-1 text-xs text-accent-alert">
+                  Affected: Any push after GitHub Actions was wired up without disabling platform auto-deploy
+                </p>
+              </div>
+
+              <div className="border-t border-text-secondary/10 pt-6">
+                <h3 className="font-semibold text-text-primary">Shell Injection Risk in GitHub Actions Workflow</h3>
+                <p className="mt-2 text-sm text-text-secondary">
+                  The initial workflow templated <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">{"${{ github.event.head_commit.message }}"}</code> directly into the shell command for the jq payload. A commit message containing a single quote, backtick, or newline would break the JSON encoding and could in principle inject shell commands.
+                </p>
+                <p className="mt-3 inline-block rounded bg-accent-alert/10 px-3 py-1 text-xs text-accent-alert">
+                  Affected: Initial GitHub Actions workflow draft (before jq --arg fix)
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -82,6 +115,36 @@ export default function TelemetryAudit() {
                 </p>
                 <p className="mt-3 inline-block rounded bg-accent-primary/10 px-3 py-1 text-xs text-accent-primary">
                   Applied: 2026-06-22 19:54 (commit 94e1387)
+                </p>
+              </div>
+
+              <div className="border-t border-text-secondary/10 pt-6">
+                <h3 className="font-semibold text-text-primary">Fix 5: "Sleeping" Status Distinct from "Down"</h3>
+                <p className="mt-2 text-sm text-text-secondary">
+                  The dashboard pipeline now distinguishes between "sleeping" (Render container inactive, will recover) and "down" (genuine failure). When the backend is unreachable, nodes show a pulsing grey "sleeping" badge instead of red "down." A "Boot it up" button fires a wake request to the Render instance and polls every 5 seconds until it recovers.
+                </p>
+                <p className="mt-3 inline-block rounded bg-accent-primary/10 px-3 py-1 text-xs text-accent-primary">
+                  Applied: 2026-06-29
+                </p>
+              </div>
+
+              <div className="border-t border-text-secondary/10 pt-6">
+                <h3 className="font-semibold text-text-primary">Fix 6: GitHub Actions Graceful Skip Without Secrets</h3>
+                <p className="mt-2 text-sm text-text-secondary">
+                  Deploy steps in the workflow now check whether their required secret is present before attempting to run. If <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">RENDER_DEPLOY_HOOK_URL</code> or <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">VERCEL_TOKEN</code> are empty, the step prints a message and exits 0 — no red build, no confusing failure. The workflow documents that auto-deploy should be disabled on both platforms once secrets are wired up.
+                </p>
+                <p className="mt-3 inline-block rounded bg-accent-primary/10 px-3 py-1 text-xs text-accent-primary">
+                  Applied: 2026-06-30 (commit pending)
+                </p>
+              </div>
+
+              <div className="border-t border-text-secondary/10 pt-6">
+                <h3 className="font-semibold text-text-primary">Fix 7: jq --arg for Safe Commit Message Encoding</h3>
+                <p className="mt-2 text-sm text-text-secondary">
+                  The GitHub Actions workflow now passes all GitHub context variables (commit SHA, message, actor, run ID) via <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">jq --arg</code> rather than direct shell interpolation. jq handles quoting and escaping internally, so commit messages with apostrophes, quotes, or special characters no longer risk breaking the JSON payload.
+                </p>
+                <p className="mt-3 inline-block rounded bg-accent-primary/10 px-3 py-1 text-xs text-accent-primary">
+                  Applied: 2026-06-30 (commit pending)
                 </p>
               </div>
 
@@ -197,7 +260,7 @@ export default function TelemetryAudit() {
 
         <div className="mt-12 rounded-xl border border-text-secondary/15 bg-surface p-6 shadow-sm">
           <p className="text-sm text-text-secondary">
-            <strong>Last updated:</strong> 2026-06-29 UTC
+            <strong>Last updated:</strong> 2026-06-30 UTC
           </p>
           <p className="mt-2 text-sm text-text-secondary">
             For detailed engineering notes, see <code className="rounded bg-background px-2 py-1 text-xs text-text-primary font-mono">docs/worklog/WORKLOG.md</code>

@@ -120,6 +120,7 @@ export function SystemStatus() {
   const [bootElapsed, setBootElapsed] = useState(0);
   const [activeNode, setActiveNode] = useState<string | null>(null);
   const [lockedNode, setLockedNode] = useState<string | null>(null);
+  const [emDashCount, setEmDashCount] = useState<number | null>(null);
   const bootTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bootStartRef = useRef<number | null>(null);
   const awakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -159,6 +160,16 @@ export function SystemStatus() {
       if (bootTimerRef.current) clearInterval(bootTimerRef.current);
       if (awakeTimeoutRef.current) clearTimeout(awakeTimeoutRef.current);
     };
+  }, []);
+
+  // Count em dashes visible on the page — a known AI writing tell.
+  // Runs once after mount so server-rendered content is fully hydrated.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const text = document.body.innerText || "";
+      setEmDashCount((text.match(/—/g) || []).length);
+    }, 500);
+    return () => clearTimeout(timer);
   }, []);
 
   function handleBoot() {
@@ -291,28 +302,40 @@ export function SystemStatus() {
       )}
 
       {/* Stats bar — infra-specific, not duplicating the dashboard above */}
-      <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {[
           {
             label: "commits pushed",
             value: telemetryData ? `${telemetryData.commit_count}` : "—",
+            hint: undefined,
           },
           {
             label: "services online",
             value: servicesOnline !== null ? `${servicesOnline} / ${totalServices}` : "—",
+            hint: undefined,
           },
           {
             label: "backend uptime",
             value: systemData ? formatUptime(systemData.backend_uptime_seconds) : "—",
+            hint: undefined,
           },
           {
             label: "pre-push tests",
             value: "2 passing",
+            hint: undefined,
+          },
+          {
+            label: "em dashes",
+            value: emDashCount !== null ? `${emDashCount}` : "—",
+            hint: "a known AI tell",
           },
         ].map((stat) => (
           <div key={stat.label} className="rounded-lg border border-text-secondary/15 bg-surface p-3">
             <p className="text-xs text-text-secondary">{stat.label}</p>
             <p className="mt-1 text-xl font-semibold text-accent-primary">{stat.value}</p>
+            {stat.hint && (
+              <p className="mt-0.5 text-[10px] text-text-secondary/60">{stat.hint}</p>
+            )}
           </div>
         ))}
       </div>
