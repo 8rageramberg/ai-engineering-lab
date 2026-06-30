@@ -30,12 +30,12 @@ export default async function Dashboard() {
         {
           label: "Tokens spent building this",
           value: numberFormatter.format(summary.total_tokens),
-          hint: "input + output + cache-write tokens across every logged session",
+          hint: "input + output + cache-write tokens — cache-read tokens excluded from this count (they re-read prior context, not new work), but their cost is included below",
         },
         {
           label: "Estimated cost (Claude list-rate pricing)",
           value: costFormatter.format(summary.total_cost_usd),
-          hint: "priced per-category at current Claude list rates — not an actual invoice",
+          hint: "input at $3/MTok, output at $15/MTok, cache-write at $3.75/MTok, cache-read at $0.30/MTok — not an invoice, and sessions before 2026-06-30 are missing cache-read cost (see audit log)",
         },
         {
           label: "Coding sessions logged",

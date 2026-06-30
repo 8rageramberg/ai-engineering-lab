@@ -47,6 +47,19 @@ export default function TelemetryAudit() {
               </div>
 
               <div className="border-t border-text-secondary/10 pt-6">
+                <h3 className="font-semibold text-text-primary">Cache-Read Tokens Excluded from Cost Estimates</h3>
+                <p className="mt-2 text-sm text-text-secondary">
+                  Cache-read tokens were correctly excluded from the token count metric (right decision — they re-read prior context and would inflate counts 5–10x). But the cost formula also never populated the cache_read variable, so it silently added $0 for them instead of charging at $0.30/MTok. The dashboard said "Claude list-rate pricing" but quietly missed this category.
+                </p>
+                <p className="mt-2 text-xs text-text-secondary">
+                  <strong>Example:</strong> The VS Code Claude Code extension reported 133M cache-hit tokens for this project. At $0.30/MTok that is ~$40 of real API cost that was not captured in any session estimate.
+                </p>
+                <p className="mt-3 inline-block rounded bg-accent-alert/10 px-3 py-1 text-xs text-accent-alert">
+                  Affected: All cost estimates before 2026-06-30
+                </p>
+              </div>
+
+              <div className="border-t border-text-secondary/10 pt-6">
                 <h3 className="font-semibold text-text-primary">Backend Sleep Misread as a Crash</h3>
                 <p className="mt-2 text-sm text-text-secondary">
                   Early versions of the dashboard showed the backend as "down" when Render's free-tier container was simply sleeping after inactivity. The system-status endpoint returns null service data during sleep, which is indistinguishable from a crash at the API boundary.
@@ -145,6 +158,22 @@ export default function TelemetryAudit() {
                 </p>
                 <p className="mt-3 inline-block rounded bg-accent-primary/10 px-3 py-1 text-xs text-accent-primary">
                   Applied: 2026-06-30 (commit pending)
+                </p>
+              </div>
+
+              <div className="border-t border-text-secondary/10 pt-6">
+                <h3 className="font-semibold text-text-primary">Fix 8: Cache-Read Cost Now Included in Estimates</h3>
+                <p className="mt-2 text-sm text-text-secondary">
+                  Cache-read tokens (context re-used from prior sessions) were correctly excluded from the token count metric to avoid 5–10x inflation. However, they were also accidentally excluded from the cost estimate — the formula had a slot for them but never populated the variable. Anthropic charges $0.30/MTok for cache reads, roughly 10x cheaper than fresh input but still real cost.
+                </p>
+                <p className="mt-2 text-xs text-text-secondary">
+                  <strong>Example:</strong> 133M cache-read tokens across the project lifetime at $0.30/MTok = ~$40 that was not captured in any session estimate before this fix.
+                </p>
+                <p className="mt-2 text-sm text-text-secondary">
+                  The hook now reads <code className="rounded bg-background px-1 py-0.5 font-mono text-xs">cache_read_input_tokens</code> from transcripts and adds it to the cost estimate at $0.30/MTok. The token count metric is unchanged — cache_read tokens remain excluded there, because they inflate "work done" without representing new model work.
+                </p>
+                <p className="mt-3 inline-block rounded bg-accent-primary/10 px-3 py-1 text-xs text-accent-primary">
+                  Applied: 2026-06-30 — sessions before this date are missing cache-read cost
                 </p>
               </div>
 
