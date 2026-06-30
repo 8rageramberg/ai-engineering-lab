@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 from app.config import CORS_ORIGINS
 from app.demo_agent import service as demo_agent_service
+from app.events import router as events_router
 from app.system_status import service as system_status_service
 from app.telemetry import repository as telemetry_repository
 
@@ -15,6 +16,8 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+app.include_router(events_router.router)
 
 
 class AskRequest(BaseModel):
@@ -34,6 +37,11 @@ def telemetry_summary():
 @app.get("/api/telemetry/daily-activity")
 def telemetry_daily_activity():
     return telemetry_repository.get_daily_activity()
+
+
+@app.get("/api/telemetry/deploys")
+def telemetry_deploys():
+    return telemetry_repository.get_deploys()
 
 
 @app.get("/api/system-status")

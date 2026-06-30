@@ -78,3 +78,59 @@ def get_daily_activity() -> list[dict]:
             rows = cur.fetchall()
 
     return [{"date": day.isoformat(), "tokens": int(tokens)} for day, tokens in rows]
+
+
+DEPLOYS_SUMMARY_QUERY = """
+    SELECT
+        COUNT(*)                                                         AS total_deploys,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') AS deploys_last_7_days,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 day')  AS deploys_last_24h
+    FROM events
+    WHERE event_type = 'commit_pushed'
+"""
+
+RECENT_DEPLOYS_QUERY = """
+    SELECT
+        id,
+        created_at,
+        commit_sha,
+        metadata->>'commit_message' AS commit_message,
+        metadata->>'actor'          AS actor,
+        metadata->>'branch'         AS branch,
+        metadata->>'workflow_run_id' AS workflow_run_id
+    FROM events
+    WHERE event_type = 'commit_pushed'
+    ORDER BY created_at DESC
+    LIMIT 10
+"""
+
+
+def get_deploys() -> dict:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(DEPLOYS_SUMMARY_QUERY)
+            summary_row = cur.fetchone()
+            cur.execute(RECENT_DEPLOYS_QUERY)
+            recent_rows = cur.fetchall()
+
+    total, last_7d, last_24h = summary_row
+    recent = [
+        {
+            "id": str(row_id),
+            "created_at": created_at.isoformat(),
+            "commit_sha": commit_sha[:7] if commit_sha else None,
+            "commit_sha_full": commit_sha,
+            "commit_message": commit_message,
+            "actor": actor,
+            "branch": branch,
+            "workflow_run_id": workflow_run_id,
+        }
+        for row_id, created_at, commit_sha, commit_message, actor, branch, workflow_run_id in recent_rows
+    ]
+
+    return {
+        "total_deploys": int(total),
+        "deploys_last_7_days": int(last_7d),
+        "deploys_last_24h": int(last_24h),
+        "recent": recent,
+    }

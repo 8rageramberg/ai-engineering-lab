@@ -61,6 +61,24 @@ async function getJSON<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export type DeployEvent = {
+  id: string;
+  created_at: string;
+  commit_sha: string | null;        // short (7 chars)
+  commit_sha_full: string | null;
+  commit_message: string | null;
+  actor: string | null;
+  branch: string | null;
+  workflow_run_id: string | null;
+};
+
+export type DeploysSummary = {
+  total_deploys: number;
+  deploys_last_7_days: number;
+  deploys_last_24h: number;
+  recent: DeployEvent[];
+};
+
 export type AskAgentResponse = {
   answer: string;
 };
@@ -102,6 +120,10 @@ export function getSystemStatus() {
 
 export function getDemoAgentStats() {
   return getJSON<DemoAgentStats>("/api/demo-agent/stats");
+}
+
+export function getDeploys() {
+  return getJSON<DeploysSummary>("/api/telemetry/deploys");
 }
 
 export async function askAgent(question: string): Promise<AskAgentResponse> {

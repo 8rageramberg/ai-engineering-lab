@@ -20,6 +20,36 @@ Add new entries at the top, newest first.
 
 ## Entries
 
+### 2026-06-30 — GitHub Actions CI/CD + commit_pushed event type
+- decision: Add `.github/workflows/deploy.yml` as the remote CI/CD gate. Two jobs: `ci` runs
+  backend pytest + frontend build check (belt-and-suspenders alongside the local pre-push hook);
+  `deploy` triggers Render (deploy hook HTTP POST) and Vercel (CLI `--prod`) only when CI passes,
+  then emits a `commit_pushed` event to `POST /api/events/internal`. The internal endpoint is
+  protected by a shared `INTERNAL_API_SECRET` header, added to `backend/app/config.py` and
+  stored as a GitHub Actions secret. `commit_pushed` events feed a new `/api/telemetry/deploys`
+  endpoint and a "Deploy history" section on the dashboard.
+- why: The local pre-push hook is a fast local gate but can be bypassed (force-push, GitHub UI
+  commits, dependabot). GitHub Actions provides the same test gate in CI where bypassing is
+  impossible. The `commit_pushed` event gives the dashboard a deploy trail — total deploys,
+  frequency, and per-commit context — from a source that can't be faked by local tooling.
+- alternatives considered:
+  - Keep relying on Vercel/Render auto-deploy only — rejected because no CI gate exists in that
+    path; a broken push could deploy straight to prod if the local hook was skipped.
+  - Use `amondnet/vercel-action` instead of Vercel CLI — rejected; third-party action adds a
+    supply-chain dependency for a task `npx vercel --prod` handles natively.
+  - Emit `commit_pushed` from the local post-commit hook — rejected; local hooks run before
+    GitHub Actions and before the actual deploy, so they can't honestly record "deploy succeeded".
+    GitHub Actions fires after the deploy steps, making the event semantically correct.
+- impact:
+  - Adds `.github/workflows/deploy.yml` (CI + deploy trigger + event emission).
+  - Adds `backend/app/events/router.py` with `POST /api/events/internal` (auth-gated).
+  - Adds `INTERNAL_API_SECRET` to `backend/app/config.py` (must be set in Render env + GitHub secrets).
+  - Adds `GET /api/telemetry/deploys` endpoint and matching frontend fetch + dashboard section.
+  - To avoid double deploys: disable auto-deploy on Vercel (Project → Settings → Git) and Render
+    (Service → Settings → Auto-Deploy → No) once this workflow is configured with secrets.
+  - `commit_pushed` is already in TELEMETRY_RULES.md; no schema change needed.
+- feature_area: infra
+
 ### 2026-06-22 — Add pre-push validation hook to block broken code from reaching main
 - decision: Add a `pre-push` git hook (`scripts/git-hooks/pre-push`) that runs on every `git push`
   and blocks the push if either backend tests or frontend build fail. Backend tests are run via

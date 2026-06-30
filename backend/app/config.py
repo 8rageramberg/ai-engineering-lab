@@ -26,3 +26,8 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://frontend:3000")
 # live gpt-4o-mini calls (see app/ai/client.py); absence simply means that
 # feature degrades to an explanatory error rather than the app failing to boot.
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
+# Shared secret for POST /api/events/internal — must match the value stored in
+# GitHub Actions secrets (INTERNAL_API_SECRET). If absent the endpoint returns
+# 403 for every request, effectively disabling it without crashing the app.
+INTERNAL_API_SECRET = os.environ.get("INTERNAL_API_SECRET")
