@@ -5,7 +5,7 @@ import { ActivityCalendar } from "./ActivityCalendar";
 // Grep of all frontend/src/app/**/*.tsx files for "—" excluding loading-state
 // placeholders (return "—", value: "—") and code/comment lines.
 // Update when copy changes: grep -rn "—" src/app --include="*.tsx" | grep -v 'return "—"' | grep -v ': "—"' | grep -v "//\|/\*\|match\|title={"
-const SITE_EM_DASH_COUNT = 36;
+const SITE_EM_DASH_COUNT = 46;
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 const costFormatter = new Intl.NumberFormat("en-US", {
@@ -30,12 +30,12 @@ export default async function Dashboard() {
         {
           label: "Tokens spent building this",
           value: numberFormatter.format(summary.total_tokens),
-          hint: "input + output + cache-write tokens — cache-read tokens excluded from this count (they re-read prior context, not new work), but their cost is included below",
+          hint: "input + output + cache-write tokens per session — cache-read tokens are tracked separately, see the methodology note below",
         },
         {
           label: "Estimated cost (Claude list-rate pricing)",
           value: costFormatter.format(summary.total_cost_usd),
-          hint: "input at $3/MTok, output at $15/MTok, cache-write at $3.75/MTok, cache-read at $0.30/MTok — not an invoice, and sessions before 2026-06-30 are missing cache-read cost (see audit log)",
+          hint: "input $3/MTok, output $15/MTok, cache-write $3.75/MTok — not an actual invoice, and does not include cache-read cost (~$40 estimated separately)",
         },
         {
           label: "Coding sessions logged",
@@ -126,6 +126,38 @@ export default async function Dashboard() {
                 </div>
               ))}
             </dl>
+
+            <div className="mt-4 rounded-xl border border-text-secondary/15 bg-surface p-6 shadow-sm">
+              <p className="text-sm font-semibold text-text-primary">How these token counts work</p>
+              <p className="mt-3 text-xs leading-5 text-text-secondary">
+                The post-commit git hook reads Claude Code transcripts at each commit and sums three
+                token categories: <span className="font-medium text-text-primary">input</span> (your
+                prompts), <span className="font-medium text-text-primary">output</span> (Claude&apos;s
+                responses), and{" "}
+                <span className="font-medium text-text-primary">cache-write</span> (new context
+                written to Anthropic&apos;s cache for the first time). These three form the figure above.
+              </p>
+              <p className="mt-2 text-xs leading-5 text-text-secondary">
+                <span className="font-medium text-text-primary">Cache-read tokens</span> are not
+                included. On every message, Anthropic re-sends your prior conversation context from
+                its cache — cheap at $0.30/MTok but automatic and proportional to message count, not
+                to new work. At a 97% cache hit rate, they account for roughly{" "}
+                <span className="font-medium text-text-primary">135M additional tokens</span> across
+                this project. Including them would make the count read 5–10× higher without reflecting
+                more prompts or output. They are tracked separately, not mixed into the main figure.
+              </p>
+              <div className="mt-4 flex items-center justify-between">
+                <p className="text-xs text-text-secondary">
+                  Cache-read estimate: ~135M tokens, ~$40 (VS Code Claude Code extension, 2026-06-30) — not in the cost total above.
+                </p>
+                <a
+                  href="/telemetry-audit"
+                  className="ml-6 shrink-0 text-xs font-medium text-accent-primary hover:underline"
+                >
+                  Full methodology and known gaps in the audit log
+                </a>
+              </div>
+            </div>
 
             <ActivityCalendar days={dailyActivity} />
           </>
