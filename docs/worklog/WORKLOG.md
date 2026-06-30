@@ -42,6 +42,17 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-30 — Final recruiter-ready polish: homepage, em dash counter, audit log, demo agent
+- agent: claude-code
+- session_type: coding
+- feature_area: frontend
+- task_id: none
+- summary: Rewrote homepage in personal voice ("Hi. I built this to figure out how fast you can move with coding agents..."), honest about 15h build time and known measurement gaps. Added em dash counter to dashboard stats bar (counted live from page text, labelled "a known AI tell"). Expanded telemetry audit log with 3 more bugs (backend sleep misread as crash, GitHub Actions double deploy, jq shell injection) and their fixes. Improved demo agent: added static PROJECT_INFRASTRUCTURE block to system prompt so it answers questions about hosting/stack without DB queries; rewrote page description to reflect expanded scope; updated example questions.
+- changed_files: frontend/src/app/page.tsx, frontend/src/app/dashboard/SystemStatus.tsx, frontend/src/app/demo-agent/page.tsx, frontend/src/app/telemetry-audit/page.tsx, backend/app/demo_agent/service.py
+- tests: npm run build passed clean; backend syntax validated; pre-push hook ran pytest (2 passing) and build before push
+- tokens/cost: 95,867 tokens / $0.67 — auto-logged by post-commit hook (commit 711651c), confirmed in Neon
+- telemetry notes: no schema changes; session row 4fb58102 verified in Neon prod db
+
 ### 2026-06-29 — Rebuild system status dashboard as interactive architecture pipeline
 - agent: claude-code
 - session_type: coding
