@@ -42,6 +42,17 @@ narrative entries below. Never paste raw prompt text, file contents, or secrets 
 
 ## Entries
 
+### 2026-06-30 — Add README
+- agent: claude-code
+- session_type: docs
+- feature_area: docs
+- task_id: none
+- summary: Wrote the project README covering what the project is, the full stack table, architecture diagram, running instructions (Docker Compose and bare-metal), git hook setup, token methodology summary, environment variables, project structure, and data transparency notes.
+- changed_files: README.md
+- tests: none — docs only
+- tokens/cost: auto-logged by post-commit hook
+- telemetry notes: no changes
+
 ### 2026-06-30 — Final recruiter-ready polish: homepage, em dash counter, audit log, demo agent
 - agent: claude-code
 - session_type: coding
